@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Studio Log</title>
+<style>
+  :root {
+    --paper:#F5EFE3; --ink:#322A20; --edge:#211B12; --amber:#E2A23B;
+    --green:#5C7259; --red:#B5563C; --line:#D9CFBC; --dim:#B0A78D; --life:#8A7E9E;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    margin:0 auto; background:var(--paper); color:var(--ink);
+    font-family:-apple-system,"PingFang SC","Noto Sans SC",sans-serif;
+    font-size:15px; max-width:560px; padding-bottom:84px;
+  }
+  .mono { font-family:ui-monospace,"SF Mono",Menlo,monospace; letter-spacing:.08em; }
+  header { position:sticky; top:0; z-index:10; }
+  .filmedge {
+    background:var(--edge); color:var(--amber); display:flex;
+    justify-content:space-between; padding:12px 16px; font-size:11px;
+    border-bottom:2px solid var(--amber);
+    font-family:ui-monospace,Menlo,monospace; letter-spacing:.08em;
+  }
+  main { padding:14px 14px 0; }
+  .card { background:#FCF8EF; border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:14px; }
+  .sect { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; gap:8px; }
+  .sect h2 { font-family:"Songti SC","Noto Serif SC",serif; font-size:17px; margin:0; }
+  .sect h3 { font-family:"Songti SC",serif; font-size:14px; margin:0; }
+  .hint { font-size:11px; color:#8C8270; }
+  .laymark { display:inline-block; width:20px; height:20px; line-height:20px; text-align:center; background:var(--edge); color:var(--amber); border-radius:4px; font-size:11px; margin-right:7px; font-family:ui-monospace,monospace; vertical-align:2px; }
+  .chips { display:flex; flex-wrap:wrap; gap:7px; }
+  .chip { border:1px solid var(--line); background:transparent; color:var(--ink); border-radius:999px; padding:6px 12px; font-size:13px; cursor:pointer; }
+  .chip.on { background:var(--green); border-color:var(--green); color:#FCF8EF; }
+  .chip.meal.on { background:var(--red); border-color:var(--red); }
+  .chip.life.on { background:var(--life); border-color:var(--life); }
+  .chip.amber.on { background:var(--amber); border-color:var(--amber); color:var(--edge); }
+  .inputrow { display:flex; gap:8px; margin-top:12px; }
+  .inputrow input[type=text], .inputrow textarea {
+    flex:1; border:1px solid var(--line); border-radius:8px; padding:10px 12px;
+    font-size:15px; background:#fff; color:var(--ink); min-width:0; font-family:inherit;
+  }
+  textarea { resize:vertical; }
+  .inputrow input:focus, .inputrow textarea:focus, .tinput:focus { outline:2px solid var(--green); border-color:var(--green); }
+  .est-input { width:74px; border:1px solid var(--line); border-radius:8px; padding:10px 8px; font-size:14px; background:#fff; color:var(--ink); }
+  .tinput { border:1px solid var(--line); border-radius:8px; padding:8px; font-size:14px; background:#fff; color:var(--ink); font-family:inherit; }
+  .btn { background:var(--ink); color:#FCF8EF; border:none; border-radius:8px; padding:10px 14px; font-size:14px; white-space:nowrap; cursor:pointer; }
+  .btn:active { opacity:.8; }
+  .btn.full { width:100%; }
+  .btn.go { background:var(--green); }
+  .btn.ghost { background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .btn.cam { background:transparent; border:1px solid var(--line); color:var(--ink); padding:10px 11px; }
+  .btn.cam.has { border-color:var(--green); color:var(--green); }
+  .empty { color:#99906E; font-size:13px; margin:12px 2px 2px; }
+  ul { list-style:none; padding:0; margin:14px 0 0; }
+  .foldlink { font-size:13px; color:var(--green); background:none; border:none; padding:8px 0 0; cursor:pointer; }
+
+  .running { border:1.5px solid var(--amber); background:#fff; border-radius:8px; margin-bottom:9px; padding:10px 12px; display:flex; align-items:center; gap:10px; }
+  .running .pulse { width:9px; height:9px; border-radius:50%; background:var(--amber); flex-shrink:0; animation:pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  @media (prefers-reduced-motion: reduce){ .running .pulse{animation:none} }
+  .running .rtext { flex:1; min-width:0; }
+  .rname { font-weight:600; font-size:14px; }
+  .rmeta { font-size:11px; color:#8C8270; font-family:ui-monospace,monospace; margin-top:2px; }
+  .rnote { font-size:12px; color:#6B6354; margin-top:3px; }
+  .pbtn { border-radius:6px; border:1px solid var(--line); background:transparent; color:var(--ink); padding:6px 12px; font-size:13px; cursor:pointer; }
+  .pbtn.fin { background:var(--ink); border-color:var(--ink); color:#fff; }
+  .pbtn.go { background:var(--green); border-color:var(--green); color:#fff; }
+  .pbtn.warn { color:var(--red); border-color:var(--red); }
+  .pbtn.mini { padding:3px 8px; font-size:11px; }
+  .doneact { font-size:12px; color:#6B6354; padding:6px 2px; border-bottom:1px dashed var(--line); }
+  .doneact:last-child { border-bottom:none; }
+  .doneact .mono2 { font-family:ui-monospace,monospace; color:#8C8270; }
+
+  .plan { margin-bottom:10px; border-radius:8px; overflow:hidden; border:1px solid var(--line); background:#fff; }
+  .plan.done { border-color:var(--green); }
+  .plan.gone { opacity:.55; }
+  .plan-edge { background:var(--edge); color:var(--amber); font-size:10px; display:flex; gap:10px; padding:4px 10px; font-family:ui-monospace,monospace; letter-spacing:.08em; flex-wrap:wrap; }
+  .plan-edge .fl { color:#C9B98F; }
+  .plan-body { padding:9px 10px; }
+  .plan-text { display:flex; justify-content:space-between; gap:8px; }
+  .plan-text.struck span { text-decoration:line-through; color:var(--dim); }
+  .plan-times { font-size:12px; color:#8C8270; margin-top:5px; font-family:ui-monospace,monospace; }
+  .plan-times .over { color:var(--red); }
+  .plan-times .under { color:var(--green); }
+  .plan-acts { display:flex; gap:7px; margin-top:8px; flex-wrap:wrap; }
+  .status-tag { font-size:10px; border-radius:4px; padding:1px 6px; }
+  .status-tag.doing, .status-tag.open { background:var(--amber); color:var(--edge); }
+  .status-tag.done { background:var(--green); color:#fff; }
+  .status-tag.deferred, .status-tag.cancelled { background:var(--dim); color:#fff; }
+  .status-tag.late { background:var(--red); color:#fff; }
+
+  .notebox { border-left:3px solid var(--amber); background:#fff; border-radius:0 8px 8px 0; padding:9px 11px; margin-bottom:9px; }
+  .notebox.excerpt { border-left-color:var(--life); }
+  .notebox .ntext { font-size:14px; white-space:pre-wrap; }
+  .notebox .nmeta { font-size:10px; color:#8C8270; font-family:ui-monospace,monospace; margin-top:5px; display:flex; justify-content:space-between; }
+
+  .meallist li { display:flex; align-items:center; gap:8px; padding:8px 0; border-bottom:1px dashed var(--line); font-size:14px; flex-wrap:wrap; }
+  .meallist li:last-child { border-bottom:none; }
+  .mealtype { color:var(--red); font-size:12px; border:1px solid var(--red); border-radius:4px; padding:1px 5px; flex-shrink:0; }
+  .mealtext { flex:1; }
+  .mealtime { font-size:11px; color:#8C8270; font-family:ui-monospace,monospace; }
+  .del { background:none; border:none; color:var(--dim); font-size:17px; padding:0 4px; line-height:1; cursor:pointer; }
+  .thumb { display:block; width:100%; max-width:180px; border-radius:6px; margin-top:8px; cursor:pointer; border:1px solid var(--line); }
+  .thumb.big { max-width:100%; }
+
+  .explist li { display:flex; gap:8px; align-items:center; padding:8px 0; border-bottom:1px dashed var(--line); font-size:14px; }
+  .explist li:last-child { border-bottom:none; }
+  .expcat { font-size:11px; border:1px solid var(--green); color:var(--green); border-radius:4px; padding:1px 5px; flex-shrink:0; }
+  .expamt { font-family:ui-monospace,monospace; font-weight:600; }
+  .expnote { flex:1; color:#6B6354; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  .linelist li { display:grid; grid-template-columns:1fr auto; gap:2px 8px; padding:10px 0; border-bottom:1px dashed var(--line); align-items:center; }
+  .linelist li:last-child { border-bottom:none; }
+  .linelist .del { grid-row:1/3; }
+  .linename { font-weight:600; font-size:14px; }
+  .linestat { font-size:12px; color:#8C8270; display:flex; gap:6px; align-items:center; }
+  .dots { color:var(--green); letter-spacing:2px; font-size:9px; }
+  .idle { color:var(--dim); }
+
+  .tl-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .tl-nav button { background:transparent; border:1px solid var(--line); border-radius:8px; padding:7px 14px; color:var(--ink); font-size:14px; cursor:pointer; }
+  .tl-nav button:disabled { opacity:.3; }
+  .tl-date { font-family:"Songti SC",serif; font-weight:700; font-size:16px; }
+  .tl-wrap { position:relative; background:#FCF8EF; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .tl-hour { position:absolute; left:0; right:0; border-top:1px dashed #E5DCC6; font-size:10px; color:#A89D7F; font-family:ui-monospace,monospace; padding:2px 0 0 6px; }
+  .tl-now { position:absolute; left:0; right:0; border-top:1.5px solid var(--red); z-index:5; }
+  .tl-now::before { content:"现在"; position:absolute; right:4px; top:-7px; font-size:9px; color:var(--red); background:var(--paper); padding:0 3px; }
+  .tl-block { position:absolute; border-radius:6px; padding:3px 6px; font-size:11px; overflow:hidden; color:#fff; line-height:1.3; border:1px solid rgba(0,0,0,.15); }
+  .tl-block .bt { font-family:ui-monospace,monospace; font-size:9px; opacity:.85; display:block; }
+  .tl-block.work { background:var(--green); }
+  .tl-block.plan { background:var(--amber); color:var(--edge); }
+  .tl-block.life { background:var(--life); }
+  .tl-block.live { box-shadow:0 0 0 2px var(--amber); }
+  .tl-meal { position:absolute; z-index:6; font-size:10px; color:var(--red); background:#fff; border:1px solid var(--red); border-radius:999px; padding:1px 7px; white-space:nowrap; }
+  .tl-note { position:absolute; z-index:6; font-size:10px; color:var(--edge); background:#FBE9C5; border:1px solid var(--amber); border-radius:999px; padding:1px 7px; white-space:nowrap; left:42px; }
+  .tl-legend { display:flex; gap:12px; font-size:11px; color:#8C8270; margin-top:10px; flex-wrap:wrap; }
+  .tl-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+
+  .stable { width:100%; border-collapse:collapse; font-size:12px; }
+  .stable th { text-align:left; color:#8C8270; font-weight:500; padding:6px 6px; border-bottom:1px solid var(--line); font-size:11px; }
+  .stable td { padding:7px 6px; border-bottom:1px dashed #E8E0CC; }
+  .stable .num { font-family:ui-monospace,monospace; text-align:right; }
+  .stable tr:last-child td { border-bottom:none; }
+  .scrollx { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .barrow { display:flex; align-items:center; gap:8px; margin:6px 0; }
+  .barlabel { width:58px; font-size:11px; font-family:ui-monospace,monospace; color:#8C8270; flex-shrink:0; }
+  .bartrack { flex:1; background:#EFE8D5; border-radius:4px; height:16px; position:relative; overflow:hidden; }
+  .barfill { height:100%; background:var(--green); border-radius:4px; }
+  .barfill.amber { background:var(--amber); }
+  .barfill.red { background:var(--red); }
+  .barval { width:52px; font-size:11px; font-family:ui-monospace,monospace; text-align:right; flex-shrink:0; }
+  .kpis { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .kpi { background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px; }
+  .kpi .kv { font-size:20px; font-weight:700; font-family:ui-monospace,monospace; }
+  .kpi .kl { font-size:11px; color:#8C8270; margin-top:2px; }
+  .autosum { background:#fff; border:1px dashed var(--line); border-radius:8px; padding:10px 12px; font-size:13px; white-space:pre-wrap; margin-top:10px; font-family:ui-monospace,monospace; line-height:1.7; }
+
+  .daystrip { border-radius:8px; overflow:hidden; margin-bottom:10px; border:1px solid var(--line); background:#fff; }
+  .strip-edge { background:var(--edge); color:var(--amber); font-size:10px; display:flex; justify-content:space-between; padding:4px 10px; font-family:ui-monospace,monospace; letter-spacing:.08em; }
+  .strip-frames { padding:10px; display:flex; gap:6px; align-items:center; min-height:34px; flex-wrap:wrap; }
+  .strip-dot { width:14px; height:14px; border-radius:3px; background:var(--green); display:inline-block; }
+  .strip-dot.plan { background:var(--amber); }
+  .strip-dot.life { background:var(--life); }
+  .strip-blank { color:#C4BBA0; font-size:11px; font-family:ui-monospace,monospace; }
+  .strip-detail { padding:4px 12px 12px; font-size:13px; border-top:1px dashed var(--line); }
+  .strip-detail p { margin:7px 0; }
+  .strip-detail b { color:var(--green); margin-right:4px; }
+  .strip-detail .est { font-family:ui-monospace,monospace; font-size:11px; color:#8C8270; }
+  .strip-meals { color:var(--red); font-size:12px; }
+
+  nav { position:fixed; bottom:0; left:0; right:0; max-width:560px; margin:0 auto; display:flex; background:var(--edge); border-top:2px solid var(--amber); padding-bottom:env(safe-area-inset-bottom); z-index:20; }
+  .tab { flex:1; background:none; border:none; color:#9A8C6B; padding:14px 0; font-size:13px; cursor:pointer; }
+  .tab.active { color:var(--amber); font-weight:700; }
+  .view { display:none; }
+  .view.show { display:block; }
+  #loading { display:flex; align-items:center; justify-content:center; height:60vh; color:var(--amber); background:var(--edge); border-radius:10px; margin:14px; }
+
+  @media (min-width: 920px) {
+    body { max-width:1060px; }
+    nav { max-width:1060px; }
+    .cols { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; align-items:start; }
+    .kpis { grid-template-columns:repeat(4,1fr); }
+    .statcols { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; align-items:start; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="filmedge"><span>PAWCLAW STUDIO LOG</span><span id="edgeInfo"></span></div>
+</header>
+
+<div id="loading"><span class="mono">LOADING ▸ STUDIO LOG</span></div>
+
+<main id="app" style="display:none">
+
+  <!-- ============ 今日 ============ -->
+  <div class="view show" id="view-today">
+    <div class="cols">
+    <div>
+      <section class="card">
+        <div class="sect"><h2>现在在做</h2><span class="hint">开始说一声,回来再说一声</span></div>
+        <div class="chips" id="actLineChips"></div>
+        <div class="inputrow">
+          <input type="text" id="actInput" placeholder="我去洗碗了 / 开始剪片子…">
+          <button class="btn go" onclick="startAct()">▶ 开始</button>
+        </div>
+        <div id="runningList"></div>
+        <button class="foldlink" onclick="toggleRetro()">＋ 补记已发生的事</button>
+        <div id="retroForm" style="display:none">
+          <div class="inputrow"><input type="text" id="retroText" placeholder="做了什么…"></div>
+          <div class="inputrow" style="align-items:center;flex-wrap:wrap">
+            <input type="date" class="tinput" id="retroDate">
+            <input type="time" class="tinput" id="retroStart" title="开始">
+            <span class="hint">至</span>
+            <input type="time" class="tinput" id="retroEnd" title="结束">
+          </div>
+          <div class="inputrow"><input type="text" id="retroNote" placeholder="备注(可不填)"></div>
+          <div class="inputrow"><button class="btn full" onclick="addRetro()">补记这件事</button></div>
+        </div>
+      </section>
+
+      <div id="carryover"></div>
+
+      <section class="card">
+        <div class="sect"><h2>今日计划</h2><span class="hint" id="planStat"></span></div>
+        <div class="chips" id="planLineChips"></div>
+        <div class="inputrow">
+          <input type="text" id="planInput" placeholder="计划做什么…">
+          <input type="number" class="est-input" id="planEst" placeholder="预计分" min="1">
+        </div>
+        <div class="inputrow" style="margin-top:8px"><button class="btn full" onclick="addPlan()">＋ 写下计划</button></div>
+        <div id="planList"></div>
+      </section>
+    </div>
+
+    <div>
+      <section class="card">
+        <div class="sect"><h2>感想 · 摘录</h2><span class="hint">想到就写,带时间戳</span></div>
+        <div class="chips">
+          <button class="chip amber" id="noteKindThought" onclick="setNoteKind('感想')">感想</button>
+          <button class="chip life" id="noteKindExcerpt" onclick="setNoteKind('摘录')">摘录</button>
+          <input type="time" class="tinput" id="noteTime" title="可改为实际发生时间" style="margin-left:auto">
+        </div>
+        <div class="inputrow">
+          <textarea id="noteInput" rows="2" placeholder="写下感想,或贴一段摘录…"></textarea>
+        </div>
+        <div class="inputrow" style="margin-top:8px"><button class="btn full" onclick="addNote()">记下来</button></div>
+        <div id="noteList"></div>
+      </section>
+
+      <section class="card">
+        <div class="sect"><h2>饮食</h2><span class="hint" id="mealCount"></span></div>
+        <div class="chips" id="mealChips"></div>
+        <div class="inputrow">
+          <input type="text" id="mealInput" placeholder="吃了什么…">
+          <button class="btn cam" id="mealCam" onclick="pickImage('meal')">📷</button>
+          <button class="btn" onclick="submitMeal()">记录</button>
+        </div>
+        <div id="mealList"></div>
+      </section>
+
+      <section class="card">
+        <div class="sect"><h2>花销</h2><span class="hint" id="expToday"></span></div>
+        <div class="chips" id="expCatChips"></div>
+        <div class="inputrow">
+          <input type="number" class="est-input" id="expAmt" placeholder="¥" min="0" step="0.01">
+          <input type="text" id="expNote" placeholder="买了什么…">
+          <button class="btn" onclick="addExp()">记账</button>
+        </div>
+        <div id="expList"></div>
+      </section>
+
+      <section class="card">
+        <div class="sect"><h2>今日日结</h2><span class="hint">先看数据,再写一句话</span></div>
+        <button class="btn ghost full" onclick="genAutoSum()">生成今日数据摘要</button>
+        <div id="autoSumBox"></div>
+        <div class="inputrow">
+          <textarea id="sumInput" rows="2" placeholder="今天的思考、状态变化、明天最想做的一件事…"></textarea>
+        </div>
+        <div class="inputrow" style="margin-top:8px"><button class="btn full" onclick="saveSum()">保存日结</button></div>
+        <div id="sumSaved" class="hint" style="margin-top:8px"></div>
+      </section>
+    </div>
+    </div>
+  </div>
+
+  <!-- ============ 时间轴 ============ -->
+  <div class="view" id="view-timeline"></div>
+
+  <!-- ============ 团队 ============ -->
+  <div class="view" id="view-team"></div>
+
+  <!-- ============ 统计 ============ -->
+  <div class="view" id="view-stats"></div>
+
+  <!-- ============ 管理 ============ -->
+  <div class="view" id="view-manage">
+    <div class="cols">
+    <div id="linesPanel"></div>
+    <div>
+      <section class="card">
+        <div class="sect"><h2>数据备份</h2><span class="hint">云端自动存,本地手动备</span></div>
+        <p class="hint" style="margin:0 0 10px">数据会自动保存在你的 Claude 账号里(云端)。建议每周再导出一份 JSON 文件存到手机或电脑本地,双保险。</p>
+        <label style="font-size:13px;display:block;margin-bottom:8px">
+          <input type="checkbox" id="expWithImg"> 导出时包含图片(文件会大很多)
+        </label>
+        <div class="inputrow" style="margin-top:0">
+          <button class="btn full" onclick="exportData()">⬇ 导出全部数据</button>
+        </div>
+        <div class="inputrow">
+          <button class="btn ghost full" onclick="document.getElementById('importPick').click()">⬆ 从备份文件恢复</button>
+        </div>
+        <div id="backupMsg" class="hint" style="margin-top:8px"></div>
+        <textarea id="exportFallback" rows="4" style="display:none;width:100%;margin-top:10px;font-size:11px" readonly></textarea>
+      </section>
+    </div>
+    </div>
+  </div>
+</main>
+
+<nav>
+  <button class="tab active" onclick="switchTab('today',this)">今日</button>
+  <button class="tab" onclick="switchTab('timeline',this)">时间轴</button>
+  <button class="tab" onclick="switchTab('team',this)">团队</button>
+  <button class="tab" onclick="switchTab('stats',this)">统计</button>
+  <button class="tab" onclick="switchTab('manage',this)">管理</button>
+</nav>
+
+<input type="file" id="filePick" accept="image/*" style="display:none">
+<input type="file" id="importPick" accept=".json,application/json" style="display:none" onchange="importData(this)">
+
+<script>
+/* ================= 存储 ================= */
+const mem = {};
+const store = {
+  async get(k){
+    if (window.storage) { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : null; } catch { return null; } }
+    return mem[k] ?? null;
+  },
+  async set(k,v){
+    if (window.storage) { try { await window.storage.set(k, JSON.stringify(v)); } catch(e){ console.error(e); alert("保存失败:"+(e.message||"数据可能太大")); } }
+    else mem[k] = v;
+  },
+  async del(k){
+    if (window.storage) { try { await window.storage.delete(k); } catch(e){} }
+    else delete mem[k];
+  },
+  async list(prefix){
+    if (window.storage) { try { const r = await window.storage.list(prefix); return r ? r.keys : []; } catch { return []; } }
+    return Object.keys(mem).filter(k=>k.startsWith(prefix||""));
+  }
+};
+
+/* ================= 工具 ================= */
+const DAYS_KEPT = 14;
+const pad = n => String(n).padStart(2,"0");
+const dateStr = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const today = dateStr(new Date());
+const lastN = n => Array.from({length:n},(_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return dateStr(d);});
+const wd = ds => "日一二三四五六"[new Date(ds+"T12:00:00").getDay()];
+const sd = ds => ds.slice(5).replace("-",".");
+const hm = ts => { const d=new Date(ts); return pad(d.getHours())+":"+pad(d.getMinutes()); };
+const dhm = ts => { const d=new Date(ts); return `${pad(d.getMonth()+1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const nowHM = () => hm(Date.now());
+const uid = () => Math.random().toString(36).slice(2,9);
+const esc = s => String(s??"").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtMin = m => { m=Math.round(m); return m >= 60 ? `${Math.floor(m/60)}h${m%60 ? pad(m%60) : ""}` : `${m}分`; };
+const fmtDur = ms => { const h = ms/3600000; return h >= 24 ? (h/24).toFixed(1)+"天" : h >= 1 ? h.toFixed(1)+"h" : Math.round(ms/60000)+"分"; };
+const dayStart = ds => new Date(ds+"T00:00:00").getTime();
+const minOfDay = (ts, ds) => Math.max(0, Math.min(1439, Math.round((ts - dayStart(ds))/60000)));
+const tsFrom = (ds, hmStr) => { const [h,m]=hmStr.split(":").map(Number); return dayStart(ds)+ (h*60+m)*60000; };
+
+const LAYERS = [
+  {id:"daily", name:"日更线", desc:"数量即进展", mark:"D"},
+  {id:"weekly", name:"周推进", desc:"看里程碑", mark:"W"},
+  {id:"monthly", name:"月资产", desc:"只问厚不厚", mark:"M"},
+];
+const DEFAULT_LINES = [
+  {id:"l1", name:"日更内容 / 壁虎日常", layer:"daily"},
+  {id:"l2", name:"Prompt 与视觉迭代", layer:"daily"},
+  {id:"l3", name:"星光计划 · 比赛短片", layer:"weekly"},
+  {id:"l4", name:"平台合作与谈判", layer:"weekly"},
+  {id:"l5", name:"一洄 / Gizmo 世界观", layer:"monthly"},
+  {id:"l6", name:"审美积累库", layer:"monthly"},
+];
+const MEAL_TYPES = ["早餐","午餐","晚餐","加餐"];
+const EXP_CATS = ["餐饮","制作","工具","交通","其他"];
+const STATUS_CN = {todo:"待办", doing:"进行中", done:"完成", deferred:"已顺延", cancelled:"已取消", open:"进行中"};
+const LIFE = "__life__";
+
+let lines = [], days = {}, members = [], tasks = [];
+let selPlanLine = null, selActLine = LIFE, selExpCat = "餐饮", noteKind = "感想";
+let selTaskMember = null, selTaskLine = null;
+let selMeal = (()=>{ const h=new Date().getHours(); return h<10?"早餐":h<14?"午餐":h<21?"晚餐":"加餐"; })();
+let openStrip = null, newLayer = "daily", tlDate = today, teamShowDone = false;
+let pendingImg = { meal:null };
+const imgCache = {};
+
+function dayOf(ds){
+  if (!days[ds]) days[ds] = {};
+  const d = days[ds];
+  for (const k of ["logs","meals","plans","acts","notes","expenses"]) if (!d[k]) d[k] = [];
+  if (d.summary === undefined) d.summary = "";
+  return d;
+}
+async function saveDay(ds){ await store.set("day:"+ds, days[ds]); }
+async function saveLines(){ await store.set("worklines", lines); }
+async function saveMembers(){ await store.set("members", members); }
+async function saveTasks(){ await store.set("tasks", tasks); }
+function lineName(id){
+  if (id === LIFE || !id) return "生活";
+  return (lines.find(l=>l.id===id)||{}).name || "已删除的线";
+}
+function memberName(id){ return (members.find(m=>m.id===id)||{}).name || "已移除"; }
+
+/* ================= 图片 ================= */
+function pickImage(target){
+  const f = document.getElementById("filePick");
+  f.onchange = async () => {
+    const file = f.files[0]; f.value = "";
+    if (!file) return;
+    const dataUrl = await compressImage(file);
+    pendingImg[target] = dataUrl;
+    document.getElementById(target+"Cam").classList.add("has");
+  };
+  f.click();
+}
+function compressImage(file){
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 900;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) { const r = Math.min(MAX/w, MAX/h); w = Math.round(w*r); h = Math.round(h*r); }
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.62));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  });
+}
+async function attachPending(target, entry){
+  const data = pendingImg[target];
+  if (!data) return;
+  const id = "img_" + uid();
+  await store.set("img:" + id, data);
+  imgCache[id] = data;
+  entry.imgId = id;
+  pendingImg[target] = null;
+  document.getElementById(target+"Cam").classList.remove("has");
+}
+async function hydrateImages(){
+  for (const el of document.querySelectorAll("img[data-img]")) {
+    const id = el.dataset.img;
+    if (!imgCache[id]) imgCache[id] = await store.get("img:" + id);
+    if (imgCache[id]) el.src = imgCache[id]; else el.remove();
+  }
+}
+function toggleImg(el){ el.classList.toggle("big"); }
+
+/* ================= 初始化 ================= */
+(async function init(){
+  const savedL = await store.get("worklines");
+  lines = (savedL && savedL.length) ? savedL : DEFAULT_LINES.slice();
+  if (!savedL) await saveLines();
+  const savedM = await store.get("members");
+  members = savedM || [];
+  const savedT = await store.get("tasks");
+  tasks = savedT || [];
+  for (const ds of lastN(DAYS_KEPT)) {
+    const d = await store.get("day:"+ds);
+    if (d) days[ds] = d;
+  }
+  selPlanLine = lines[0]?.id || null;
+  selTaskMember = members[0]?.id || null;
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  document.getElementById("retroDate").value = today;
+  document.getElementById("retroDate").max = today;
+  document.getElementById("sumInput").value = dayOf(today).summary || "";
+  setNoteKind("感想");
+  renderAll();
+  setInterval(()=>{ renderRunning(); }, 30000);
+})();
+
+/* ================= 渲染总控 ================= */
+function renderAll(){ renderEdge(); renderActUI(); renderRunning(); renderCarryover(); renderToday(); renderTimeline(); renderTeam(); renderStats(); renderManage(); hydrateImages(); }
+
+function renderEdge(){
+  const d = dayOf(today);
+  const done = d.plans.filter(p=>p.status==="done").length;
+  const run = d.acts.filter(a=>!a.endAt).length;
+  const openT = tasks.filter(t=>t.status==="open").length;
+  document.getElementById("edgeInfo").textContent =
+    `${sd(today)} 周${wd(today)} ▸ ${run?run+"进行中 ":""}${done}/${d.plans.length}P${openT?" T"+openT:""}`;
+}
+
+/* ================= 现在在做 + 补记 ================= */
+function renderActUI(){
+  const chips = [{id:LIFE, name:"生活"}, ...lines];
+  document.getElementById("actLineChips").innerHTML = chips.map(l =>
+    `<button class="chip${l.id===LIFE?" life":""}${selActLine===l.id?" on":""}" onclick="selActLine='${l.id}';renderActUI()">${esc(l.name)}</button>`).join("");
+}
+function actMeta(a){
+  let s = `${esc(lineName(a.lineId))} · ${hm(a.startAt)}`;
+  if (a.endAt) s += `–${hm(a.endAt)} (${fmtMin(Math.max(1,(a.endAt-a.startAt)/60000))})`;
+  else s += ` 开始 · 已 ${fmtMin(Math.max(0,(Date.now()-a.startAt)/60000))}`;
+  return s;
+}
+function renderRunning(){
+  const d = dayOf(today);
+  const running = d.acts.filter(a=>!a.endAt);
+  const finished = d.acts.filter(a=>a.endAt).slice(-5).reverse();
+  let html = running.map(a => `
+    <div class="running">
+      <span class="pulse"></span>
+      <div class="rtext">
+        <div class="rname">${esc(a.text)}</div>
+        <div class="rmeta">${actMeta(a)}</div>
+        ${a.note?`<div class="rnote">📝 ${esc(a.note)}</div>`:""}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <button class="pbtn fin" onclick="endAct('${a.id}')">■ 结束</button>
+        <button class="pbtn mini" onclick="editActNote('${a.id}')">备注</button>
+      </div>
+    </div>`).join("");
+  if (finished.length) {
+    html += finished.map(a => `
+      <div class="doneact">✓ <b>${esc(a.text)}</b> <span class="mono2">${actMeta(a)}</span>
+        ${a.note?`<div class="rnote">📝 ${esc(a.note)}</div>`:""}
+        <button class="pbtn mini" onclick="editActNote('${a.id}')">备注</button>
+        <button class="del" onclick="delAct('${a.id}')">×</button>
+      </div>`).join("");
+  }
+  if (!running.length && !finished.length) html = `<p class="empty">现在没有进行中的事。开始之前,先来说一声。</p>`;
+  document.getElementById("runningList").innerHTML = html;
+  renderEdge();
+}
+async function startAct(){
+  const inp = document.getElementById("actInput");
+  const t = inp.value.trim();
+  if (!t) return;
+  dayOf(today).acts.push({id:uid(), text:t, lineId:selActLine===LIFE?null:selActLine, startAt:Date.now(), endAt:null, note:""});
+  inp.value = "";
+  await saveDay(today);
+  renderRunning(); renderTimeline(); renderStats();
+}
+async function endAct(id){
+  const a = dayOf(today).acts.find(x=>x.id===id); if (!a) return;
+  a.endAt = Date.now();
+  await saveDay(today);
+  renderRunning(); renderTimeline(); renderStats();
+}
+async function delAct(id){
+  const d = dayOf(today);
+  d.acts = d.acts.filter(a=>a.id!==id);
+  await saveDay(today);
+  renderRunning(); renderTimeline(); renderStats();
+}
+async function editActNote(id){
+  const a = dayOf(today).acts.find(x=>x.id===id); if (!a) return;
+  const n = prompt("给这件事加备注:", a.note||"");
+  if (n === null) return;
+  a.note = n.trim();
+  await saveDay(today);
+  renderRunning(); renderStats();
+}
+function toggleRetro(){
+  const f = document.getElementById("retroForm");
+  f.style.display = f.style.display === "none" ? "block" : "none";
+}
+async function addRetro(){
+  const text = document.getElementById("retroText").value.trim();
+  const ds = document.getElementById("retroDate").value;
+  const s = document.getElementById("retroStart").value;
+  const e = document.getElementById("retroEnd").value;
+  const note = document.getElementById("retroNote").value.trim();
+  if (!text || !ds || !s || !e) { alert("请填写内容、日期、开始和结束时间"); return; }
+  let st = tsFrom(ds, s), en = tsFrom(ds, e);
+  if (en <= st) { alert("结束时间需要晚于开始时间"); return; }
+  dayOf(ds).acts.push({id:uid(), text, lineId:selActLine===LIFE?null:selActLine, startAt:st, endAt:en, note});
+  document.getElementById("retroText").value = "";
+  document.getElementById("retroNote").value = "";
+  await saveDay(ds);
+  renderAll();
+}
+
+/* ================= 感想 · 摘录 ================= */
+function setNoteKind(k){
+  noteKind = k;
+  document.getElementById("noteKindThought").classList.toggle("on", k==="感想");
+  document.getElementById("noteKindExcerpt").classList.toggle("on", k==="摘录");
+}
+async function addNote(){
+  const inp = document.getElementById("noteInput");
+  const t = inp.value.trim();
+  if (!t) return;
+  const customT = document.getElementById("noteTime").value;
+  const ts = customT ? tsFrom(today, customT) : Date.now();
+  dayOf(today).notes.push({id:uid(), kind:noteKind, text:t, ts});
+  inp.value = "";
+  document.getElementById("noteTime").value = "";
+  await saveDay(today);
+  renderToday(); renderTimeline(); renderStats();
+}
+async function delNote(id){
+  const d = dayOf(today);
+  d.notes = d.notes.filter(n=>n.id!==id);
+  await saveDay(today);
+  renderToday(); renderStats();
+}
+
+/* ================= 日结 ================= */
+function buildAutoSum(ds){
+  const d = dayOf(ds);
+  const perLine = {};
+  let lifeMin = 0;
+  for (const a of d.acts) {
+    if (!a.endAt) continue;
+    const m = (a.endAt-a.startAt)/60000;
+    if (a.lineId) perLine[a.lineId] = (perLine[a.lineId]||0)+m; else lifeMin += m;
+  }
+  for (const p of d.plans) if (p.status==="done" && p.actualMin) perLine[p.lineId] = (perLine[p.lineId]||0)+p.actualMin;
+  const workMin = Object.values(perLine).reduce((s,v)=>s+v,0);
+  const doneP = d.plans.filter(p=>p.status==="done").length;
+  const spend = d.expenses.reduce((s,e)=>s+e.amount,0);
+  const tDone = tasks.filter(t=>t.doneAt && dateStr(new Date(t.doneAt))===ds).length;
+  const tAssigned = tasks.filter(t=>dateStr(new Date(t.assignedAt))===ds).length;
+  let out = `── ${sd(ds)} 周${wd(ds)} ──\n`;
+  out += `项目时间 ${fmtMin(workMin)} · 生活 ${fmtMin(lifeMin)}\n`;
+  const sorted = Object.entries(perLine).sort((a,b)=>b[1]-a[1]);
+  for (const [lid,m] of sorted) out += `  ${lineName(lid)}:${fmtMin(m)}\n`;
+  out += `计划 ${doneP}/${d.plans.length} 完成 · 感想 ${d.notes.length} 条 · 餐 ${d.meals.length}`;
+  if (spend>0) out += ` · 花销 ¥${spend.toFixed(2)}`;
+  if (tAssigned || tDone) out += `\n团队:布置 ${tAssigned} 项 · 完成 ${tDone} 项`;
+  return out;
+}
+function genAutoSum(){
+  document.getElementById("autoSumBox").innerHTML = `<div class="autosum">${esc(buildAutoSum(today))}</div>`;
+}
+async function saveSum(){
+  const t = document.getElementById("sumInput").value.trim();
+  dayOf(today).summary = t;
+  await saveDay(today);
+  document.getElementById("sumSaved").textContent = "已保存 " + nowHM();
+  renderStats();
+}
+
+/* ================= 花销 ================= */
+function renderExp(){
+  const d = dayOf(today);
+  document.getElementById("expCatChips").innerHTML = EXP_CATS.map(c =>
+    `<button class="chip${selExpCat===c?" on":""}" onclick="selExpCat='${c}';renderExp()">${c}</button>`).join("");
+  const total = d.expenses.reduce((s,e)=>s+e.amount,0);
+  document.getElementById("expToday").textContent = total>0 ? `今日 ¥${total.toFixed(2)}` : "今天还没花钱";
+  document.getElementById("expList").innerHTML = d.expenses.length === 0 ? "" :
+    `<ul class="explist">` + d.expenses.slice().reverse().map(e => `
+      <li><span class="expcat">${e.cat}</span><span class="expamt">¥${e.amount.toFixed(2)}</span>
+      <span class="expnote">${esc(e.note)}</span><span class="mealtime">${e.time}</span>
+      <button class="del" onclick="delExp('${e.id}')">×</button></li>`).join("") + `</ul>`;
+}
+async function addExp(){
+  const amtEl = document.getElementById("expAmt");
+  const noteEl = document.getElementById("expNote");
+  const amt = parseFloat(amtEl.value);
+  if (!amt || amt <= 0) return;
+  dayOf(today).expenses.push({id:uid(), amount:amt, cat:selExpCat, note:noteEl.value.trim(), time:nowHM()});
+  amtEl.value = ""; noteEl.value = "";
+  await saveDay(today);
+  renderExp(); renderStats();
+}
+async function delExp(id){
+  const d = dayOf(today);
+  d.expenses = d.expenses.filter(e=>e.id!==id);
+  await saveDay(today);
+  renderExp(); renderStats();
+}
+
+/* ================= 今日其余渲染 ================= */
+function renderToday(){
+  const d = dayOf(today);
+  document.getElementById("planLineChips").innerHTML = lines.map(l =>
+    `<button class="chip${selPlanLine===l.id?" on":""}" onclick="selPlanLine='${l.id}';renderToday()">${esc(l.name)}</button>`).join("");
+  const done = d.plans.filter(p=>p.status==="done").length;
+  document.getElementById("planStat").textContent = d.plans.length ? `${done}/${d.plans.length} 完成` : "先写,再做";
+  document.getElementById("planList").innerHTML = d.plans.length === 0
+    ? `<p class="empty">还没有计划。写下来的那一刻,混乱就少了一半。</p>`
+    : `<ul>` + d.plans.map(p => renderPlan(p)).join("") + `</ul>`;
+
+  document.getElementById("noteList").innerHTML = d.notes.length === 0 ? "" :
+    d.notes.slice().reverse().map(n => `
+      <div class="notebox${n.kind==="摘录"?" excerpt":""}">
+        <div class="ntext">${esc(n.text)}</div>
+        <div class="nmeta"><span>${n.kind} · ${hm(n.ts)}</span>
+        <button class="del" onclick="delNote('${n.id}')">×</button></div>
+      </div>`).join("");
+
+  document.getElementById("mealChips").innerHTML = MEAL_TYPES.map(t =>
+    `<button class="chip meal${selMeal===t?" on":""}" onclick="selMeal='${t}';renderToday()">${t}</button>`).join("");
+  document.getElementById("mealCount").textContent = `今天 ${d.meals.length} 条`;
+  document.getElementById("mealList").innerHTML = d.meals.length === 0 ? "" :
+    `<ul class="meallist">` + d.meals.map(m => `
+      <li><span class="mealtype">${m.type}</span><span class="mealtext">${esc(m.text)}</span>
+      <span class="mealtime">${m.time}</span><button class="del" onclick="delMeal('${m.id}')">×</button>
+      ${m.imgId ? `<img class="thumb" data-img="${m.imgId}" onclick="toggleImg(this)" style="flex-basis:100%">` : ""}</li>`).join("") + `</ul>`;
+
+  renderExp();
+}
+
+function renderPlan(p){
+  const cls = p.status === "done" ? " done" : (p.status === "deferred" || p.status === "cancelled") ? " gone" : "";
+  let times = "";
+  if (p.estMin) times += `预计 ${fmtMin(p.estMin)}`;
+  if (p.startAt) times += `${times?" · ":""}始 ${hm(p.startAt)}`;
+  if (p.endAt) times += ` → 终 ${hm(p.endAt)}`;
+  if (p.actualMin != null) {
+    const diffCls = p.estMin ? (p.actualMin > p.estMin ? "over" : "under") : "";
+    times += ` · <span class="${diffCls}">实际 ${fmtMin(p.actualMin)}${p.estMin ? (p.actualMin>p.estMin?` (+${fmtMin(p.actualMin-p.estMin)})`:` (-${fmtMin(p.estMin-p.actualMin)})`) : ""}</span>`;
+  }
+  let acts = "";
+  if (p.status === "todo") acts = `
+    <button class="pbtn go" onclick="startPlan('${p.id}')">▶ 开始</button>
+    <button class="pbtn fin" onclick="finishPlan('${p.id}')">✓ 完成</button>
+    <button class="pbtn" onclick="deferPlan('${p.id}')">顺延</button>
+    <button class="pbtn warn" onclick="cancelPlan('${p.id}')">取消</button>
+    <button class="pbtn mini" onclick="editPlanNote('${p.id}')">备注</button>`;
+  else if (p.status === "doing") acts = `
+    <button class="pbtn fin" onclick="finishPlan('${p.id}')">✓ 完成</button>
+    <button class="pbtn" onclick="deferPlan('${p.id}')">顺延</button>
+    <button class="pbtn warn" onclick="cancelPlan('${p.id}')">取消</button>
+    <button class="pbtn mini" onclick="editPlanNote('${p.id}')">备注</button>`;
+  else acts = `<button class="pbtn mini" onclick="editPlanNote('${p.id}')">备注</button>`;
+  return `<li class="plan${cls}">
+    <div class="plan-edge">
+      <span class="status-tag ${p.status}">${STATUS_CN[p.status]}</span>
+      <span class="fl">${esc(lineName(p.lineId))}</span>
+    </div>
+    <div class="plan-body">
+      <div class="plan-text${p.status==='cancelled'?' struck':''}"><span>${esc(p.text)}</span>
+        <button class="del" onclick="delPlan('${p.id}')">×</button></div>
+      ${p.note?`<div class="rnote">📝 ${esc(p.note)}</div>`:""}
+      ${times ? `<div class="plan-times">${times}</div>` : ""}
+      ${acts ? `<div class="plan-acts">${acts}</div>` : ""}
+    </div>
+  </li>`;
+}
+
+/* ================= 计划操作 ================= */
+async function addPlan(){
+  const inp = document.getElementById("planInput");
+  const est = document.getElementById("planEst");
+  const t = inp.value.trim();
+  if (!t || !selPlanLine) return;
+  dayOf(today).plans.push({
+    id:uid(), lineId:selPlanLine, text:t,
+    estMin: est.value ? Math.max(1, parseInt(est.value)) : null,
+    status:"todo", startAt:null, endAt:null, actualMin:null, note:""
+  });
+  inp.value = ""; est.value = "";
+  await saveDay(today); renderAll();
+}
+function findPlan(id){ return dayOf(today).plans.find(p=>p.id===id); }
+async function startPlan(id){
+  const p = findPlan(id); if (!p) return;
+  p.status = "doing"; p.startAt = Date.now();
+  await saveDay(today); renderAll();
+}
+async function finishPlan(id){
+  const p = findPlan(id); if (!p) return;
+  p.status = "done"; p.endAt = Date.now();
+  if (p.startAt) p.actualMin = Math.max(1, Math.round((p.endAt - p.startAt)/60000));
+  await saveDay(today); renderAll();
+}
+async function deferPlan(id){
+  const p = findPlan(id); if (!p) return;
+  p.status = "deferred";
+  const tmr = dateStr(new Date(Date.now()+864e5));
+  dayOf(tmr).plans.push({...p, id:uid(), status:"todo", startAt:null, endAt:null, actualMin:null});
+  await saveDay(today); await saveDay(tmr); renderAll();
+}
+async function cancelPlan(id){
+  const p = findPlan(id); if (!p) return;
+  p.status = "cancelled";
+  await saveDay(today); renderAll();
+}
+async function delPlan(id){
+  const d = dayOf(today);
+  d.plans = d.plans.filter(p=>p.id!==id);
+  await saveDay(today); renderAll();
+}
+async function editPlanNote(id){
+  const p = findPlan(id); if (!p) return;
+  const n = prompt("给这条计划加备注:", p.note||"");
+  if (n === null) return;
+  p.note = n.trim();
+  await saveDay(today); renderToday();
+}
+async function carryToToday(ds, pid){
+  const p = (days[ds].plans||[]).find(x=>x.id===pid); if (!p) return;
+  p.status = "deferred";
+  dayOf(today).plans.push({...p, id:uid(), status:"todo", startAt:null, endAt:null, actualMin:null});
+  await saveDay(ds); await saveDay(today); renderAll();
+}
+async function dropOld(ds, pid){
+  const p = (days[ds].plans||[]).find(x=>x.id===pid); if (!p) return;
+  p.status = "cancelled";
+  await saveDay(ds); renderAll();
+}
+function renderCarryover(){
+  const items = [];
+  for (const ds of lastN(DAYS_KEPT)) {
+    if (ds === today || !days[ds]) continue;
+    for (const p of (days[ds].plans||[])) {
+      if (p.status === "todo" || p.status === "doing") items.push({ds, p});
+    }
+  }
+  const box = document.getElementById("carryover");
+  if (!items.length) { box.innerHTML = ""; return; }
+  box.innerHTML = `<section class="card">
+    <div class="sect"><h2>往日未完成</h2><span class="hint">决定去向,别让它们悬着</span></div>
+    ${items.map(({ds,p}) => `
+      <div class="plan">
+        <div class="plan-edge"><span>${sd(ds)}</span><span class="fl">${esc(lineName(p.lineId))}</span></div>
+        <div class="plan-body">
+          <div class="plan-text"><span>${esc(p.text)}</span></div>
+          <div class="plan-acts">
+            <button class="pbtn go" onclick="carryToToday('${ds}','${p.id}')">移到今天</button>
+            <button class="pbtn warn" onclick="dropOld('${ds}','${p.id}')">放弃</button>
+          </div>
+        </div>
+      </div>`).join("")}
+  </section>`;
+}
+
+/* ================= 饮食 ================= */
+async function submitMeal(){
+  const inp = document.getElementById("mealInput");
+  const t = inp.value.trim();
+  if (!t && !pendingImg.meal) return;
+  const entry = {id:uid(), type:selMeal, text:t||"(图片记录)", time:nowHM()};
+  await attachPending("meal", entry);
+  dayOf(today).meals.push(entry);
+  inp.value = "";
+  await saveDay(today); renderToday(); renderTimeline(); hydrateImages();
+}
+async function delMeal(id){
+  const d = dayOf(today);
+  const e = d.meals.find(m=>m.id===id);
+  if (e?.imgId) await store.del("img:"+e.imgId);
+  d.meals = d.meals.filter(m=>m.id!==id);
+  await saveDay(today); renderToday();
+}
+
+/* ================= 团队任务 ================= */
+function taskOnTime(t){
+  if (!t.doneAt) return null;
+  if (!t.dueAt) return true;
+  return t.doneAt <= t.dueAt;
+}
+function renderTeam(){
+  const openTasks = tasks.filter(t=>t.status==="open").sort((a,b)=>(a.dueAt||Infinity)-(b.dueAt||Infinity));
+  const doneTasks = tasks.filter(t=>t.status==="done").sort((a,b)=>b.doneAt-a.doneAt);
+
+  let html = `<div class="cols"><div>`;
+
+  /* 布置任务 */
+  html += `<section class="card">
+    <div class="sect"><h2>布置任务</h2><span class="hint">布置时间自动记录</span></div>`;
+  if (!members.length) {
+    html += `<p class="empty">先在下方"团队成员"里添加成员。</p>`;
+  } else {
+    html += `<div class="chips">${members.map(m =>
+      `<button class="chip${selTaskMember===m.id?" on":""}" onclick="selTaskMember='${m.id}';renderTeam()">${esc(m.name)}</button>`).join("")}</div>
+    <div class="chips" style="margin-top:8px">
+      <button class="chip${!selTaskLine?" on":""}" onclick="selTaskLine=null;renderTeam()">不归线</button>
+      ${lines.map(l=>`<button class="chip${selTaskLine===l.id?" on":""}" onclick="selTaskLine='${l.id}';renderTeam()">${esc(l.name)}</button>`).join("")}
+    </div>
+    <div class="inputrow"><input type="text" id="taskInput" placeholder="任务内容…"></div>
+    <div class="inputrow" style="align-items:center;flex-wrap:wrap">
+      <span class="hint">截止</span>
+      <input type="datetime-local" class="tinput" id="taskDue" style="flex:1;min-width:0">
+    </div>
+    <div class="inputrow"><input type="text" id="taskNote" placeholder="备注 / 验收标准(可不填)"></div>
+    <div class="inputrow"><button class="btn full" onclick="addTask()">布置给 ${esc(memberName(selTaskMember))}</button></div>`;
+  }
+  html += `</section>`;
+
+  /* 成员管理 */
+  html += `<section class="card">
+    <div class="sect"><h3>团队成员</h3><span class="hint">${members.length} 人</span></div>
+    ${members.length ? `<ul class="linelist">` + members.map(m=>{
+      const open = tasks.filter(t=>t.memberId===m.id && t.status==="open").length;
+      return `<li><div class="linename">${esc(m.name)}</div>
+        <button class="del" onclick="delMember('${m.id}')">×</button>
+        <div class="linestat">${open?`手上 ${open} 个任务`:`空闲`}</div></li>`;
+    }).join("") + `</ul>` : ""}
+    <div class="inputrow"><input type="text" id="memberInput" placeholder="成员名字…">
+    <button class="btn" onclick="addMember()">添加</button></div>
+  </section></div><div>`;
+
+  /* 进行中任务 */
+  html += `<section class="card">
+    <div class="sect"><h2>进行中 (${openTasks.length})</h2><span class="hint">按截止时间排序</span></div>`;
+  if (!openTasks.length) html += `<p class="empty">没有进行中的任务。</p>`;
+  else html += openTasks.map(t=>{
+    const overdue = t.dueAt && Date.now() > t.dueAt;
+    return `<div class="plan">
+      <div class="plan-edge">
+        <span class="status-tag ${overdue?"late":"open"}">${overdue?"已超期":"进行中"}</span>
+        <span class="fl">${esc(memberName(t.memberId))}${t.lineId?" · "+esc(lineName(t.lineId)):""}</span>
+      </div>
+      <div class="plan-body">
+        <div class="plan-text"><span>${esc(t.text)}</span><button class="del" onclick="delTask('${t.id}')">×</button></div>
+        ${t.note?`<div class="rnote">📝 ${esc(t.note)}</div>`:""}
+        <div class="plan-times">布置 ${dhm(t.assignedAt)}${t.dueAt?` · 截止 <span class="${overdue?"over":""}">${dhm(t.dueAt)}</span>`:""} · 已 ${fmtDur(Date.now()-t.assignedAt)}</div>
+        <div class="plan-acts">
+          <button class="pbtn fin" onclick="doneTask('${t.id}')">✓ 已完成</button>
+          <button class="pbtn mini" onclick="editTaskNote('${t.id}')">备注</button>
+          <button class="pbtn mini warn" onclick="cancelTask('${t.id}')">取消任务</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  html += `</section>`;
+
+  /* 效率分析表 */
+  const analyzable = members.map(m => {
+    const mts = tasks.filter(t=>t.memberId===m.id);
+    const done = mts.filter(t=>t.status==="done");
+    const open = mts.filter(t=>t.status==="open").length;
+    const withDue = done.filter(t=>t.dueAt);
+    const onTime = withDue.filter(t=>t.doneAt<=t.dueAt).length;
+    const turnArr = done.map(t=>t.doneAt-t.assignedAt);
+    const avgTurn = turnArr.length ? turnArr.reduce((s,v)=>s+v,0)/turnArr.length : null;
+    const quals = done.filter(t=>t.quality).map(t=>t.quality);
+    const avgQ = quals.length ? (quals.reduce((s,v)=>s+v,0)/quals.length) : null;
+    return {m, open, doneN:done.length, onTimeRate: withDue.length?onTime/withDue.length:null, avgTurn, avgQ};
+  }).filter(r=>r.doneN>0 || r.open>0);
+
+  html += `<section class="card">
+    <div class="sect"><h2>成员效率</h2><span class="hint">基于全部已记录任务</span></div>`;
+  if (!analyzable.length) html += `<p class="empty">还没有任务数据。布置并完成几个任务后,这里会自动生成分析。</p>`;
+  else {
+    html += `<div class="scrollx"><table class="stable">
+      <tr><th>成员</th><th class="num">在办</th><th class="num">完成</th><th class="num">按时率</th><th class="num">平均周转</th><th class="num">平均质量</th></tr>
+      ${analyzable.map(r=>`<tr>
+        <td>${esc(r.m.name)}</td>
+        <td class="num">${r.open||"·"}</td>
+        <td class="num">${r.doneN||"·"}</td>
+        <td class="num">${r.onTimeRate!==null?Math.round(r.onTimeRate*100)+"%":"—"}</td>
+        <td class="num">${r.avgTurn!==null?fmtDur(r.avgTurn):"—"}</td>
+        <td class="num">${r.avgQ!==null?r.avgQ.toFixed(1)+"★":"—"}</td>
+      </tr>`).join("")}
+    </table></div>`;
+    const withRate = analyzable.filter(r=>r.onTimeRate!==null);
+    if (withRate.length) {
+      html += `<div style="margin-top:10px">` + withRate.map(r=>`
+        <div class="barrow"><span class="barlabel">${esc(r.m.name.slice(0,4))}</span>
+        <div class="bartrack"><div class="barfill${r.onTimeRate<0.6?" red":r.onTimeRate<0.85?" amber":""}" style="width:${r.onTimeRate*100}%"></div></div>
+        <span class="barval">${Math.round(r.onTimeRate*100)}%</span></div>`).join("") + `<p class="hint" style="margin-top:4px">按时率。注意:周转时长受任务大小影响,横向比人之前先想想任务是否同量级。</p></div>`;
+    }
+  }
+  html += `</section>`;
+
+  /* 已完成 */
+  html += `<section class="card">
+    <div class="sect"><h3>已完成 (${doneTasks.length})</h3>
+    <button class="foldlink" style="padding:0" onclick="teamShowDone=!teamShowDone;renderTeam()">${teamShowDone?"收起":"展开"}</button></div>`;
+  if (teamShowDone) {
+    html += doneTasks.slice(0,30).map(t=>{
+      const ot = taskOnTime(t);
+      return `<div class="doneact">✓ <b>${esc(t.text)}</b> — ${esc(memberName(t.memberId))}
+        <div class="mono2">布置 ${dhm(t.assignedAt)} → 完成 ${dhm(t.doneAt)} · 周转 ${fmtDur(t.doneAt-t.assignedAt)}
+        ${t.dueAt?(ot?` · <span style="color:var(--green)">按时</span>`:` · <span style="color:var(--red)">超期</span>`):""}
+        ${t.quality?` · ${t.quality}★`:""}</div>
+        ${t.note?`<div class="rnote">📝 ${esc(t.note)}</div>`:""}
+        <button class="del" onclick="delTask('${t.id}')">×</button>
+      </div>`;
+    }).join("") || `<p class="empty">还没有完成的任务。</p>`;
+  }
+  html += `</section></div></div>`;
+  document.getElementById("view-team").innerHTML = html;
+
+  const ti = document.getElementById("taskInput");
+  if (ti) ti.addEventListener("keydown", e=>{ if(e.key==="Enter") addTask(); });
+}
+async function addMember(){
+  const inp = document.getElementById("memberInput");
+  const n = inp.value.trim();
+  if (!n) return;
+  const m = {id:uid(), name:n};
+  members.push(m);
+  if (!selTaskMember) selTaskMember = m.id;
+  await saveMembers(); renderTeam();
+}
+async function delMember(id){
+  if (!confirm("移除该成员?(其任务记录会保留为'已移除')")) return;
+  members = members.filter(m=>m.id!==id);
+  if (selTaskMember===id) selTaskMember = members[0]?.id || null;
+  await saveMembers(); renderTeam();
+}
+async function addTask(){
+  const inp = document.getElementById("taskInput");
+  const due = document.getElementById("taskDue");
+  const note = document.getElementById("taskNote");
+  const t = inp.value.trim();
+  if (!t || !selTaskMember) return;
+  tasks.push({
+    id:uid(), memberId:selTaskMember, lineId:selTaskLine, text:t,
+    assignedAt:Date.now(),
+    dueAt: due.value ? new Date(due.value).getTime() : null,
+    doneAt:null, status:"open", quality:null,
+    note: note.value.trim()
+  });
+  inp.value = ""; due.value = ""; note.value = "";
+  await saveTasks(); renderTeam(); renderEdge();
+}
+async function doneTask(id){
+  const t = tasks.find(x=>x.id===id); if (!t) return;
+  const q = prompt("完成质量评分 1-5(可留空):", "");
+  t.doneAt = Date.now();
+  t.status = "done";
+  if (q !== null && q.trim()) {
+    const n = parseInt(q);
+    if (n>=1 && n<=5) t.quality = n;
+  }
+  await saveTasks(); renderTeam(); renderEdge(); renderStats();
+}
+async function cancelTask(id){
+  const t = tasks.find(x=>x.id===id); if (!t) return;
+  if (!confirm("取消这个任务?(将从列表移除,不计入统计)")) return;
+  tasks = tasks.filter(x=>x.id!==id);
+  await saveTasks(); renderTeam(); renderEdge();
+}
+async function delTask(id){
+  if (!confirm("删除这条任务记录?")) return;
+  tasks = tasks.filter(x=>x.id!==id);
+  await saveTasks(); renderTeam(); renderEdge();
+}
+async function editTaskNote(id){
+  const t = tasks.find(x=>x.id===id); if (!t) return;
+  const n = prompt("任务备注 / 验收标准:", t.note||"");
+  if (n === null) return;
+  t.note = n.trim();
+  await saveTasks(); renderTeam();
+}
+
+/* ================= 时间轴 ================= */
+function renderTimeline(){
+  const ds = tlDate;
+  const d = days[ds] || {};
+  const acts = (d.acts||[]);
+  const plans = (d.plans||[]).filter(p=>p.startAt);
+  const blocks = [];
+  for (const a of acts) {
+    blocks.push({
+      s: minOfDay(a.startAt, ds),
+      e: a.endAt ? minOfDay(a.endAt, ds) : (ds===today ? minOfDay(Date.now(), ds) : minOfDay(a.startAt,ds)+30),
+      text: a.text, cls: a.lineId ? "work" : "life", live: !a.endAt, note: a.note
+    });
+  }
+  for (const p of plans) {
+    blocks.push({
+      s: minOfDay(p.startAt, ds),
+      e: p.endAt ? minOfDay(p.endAt, ds) : (ds===today ? minOfDay(Date.now(), ds) : minOfDay(p.startAt,ds)+30),
+      text: p.text, cls: "plan", live: p.status==="doing", note: p.note
+    });
+  }
+  blocks.forEach(b => { if (b.e <= b.s) b.e = b.s + 4; });
+
+  const meals = (d.meals||[]).map(m => {
+    const [h,mi] = m.time.split(":").map(Number);
+    return {min: h*60+mi, label: m.type+" "+m.text};
+  });
+  const notes = (d.notes||[]).map(n => ({min: minOfDay(n.ts, ds), label: (n.kind==="摘录"?"❝":"✎")+" "+n.text.slice(0,10)}));
+
+  let lo = 8*60, hi = 23*60;
+  for (const b of blocks) { lo = Math.min(lo, b.s); hi = Math.max(hi, b.e); }
+  for (const m of meals) { lo = Math.min(lo, m.min); hi = Math.max(hi, m.min+30); }
+  for (const n of notes) { lo = Math.min(lo, n.min); hi = Math.max(hi, n.min+30); }
+  if (ds === today) hi = Math.max(hi, minOfDay(Date.now(), ds)+20);
+  lo = Math.floor(lo/60)*60; hi = Math.min(1440, Math.ceil(hi/60)*60);
+
+  blocks.sort((a,b)=>a.s-b.s || b.e-a.e);
+  const laneEnd = [];
+  for (const b of blocks) {
+    let lane = laneEnd.findIndex(end => end <= b.s);
+    if (lane === -1) { lane = laneEnd.length; laneEnd.push(0); }
+    laneEnd[lane] = b.e;
+    b.lane = lane;
+  }
+  const nLanes = Math.max(1, laneEnd.length);
+  const PX = 1.15, H = (hi-lo)*PX;
+  const dates = lastN(DAYS_KEPT);
+  const idx = dates.indexOf(ds);
+
+  let html = `<div class="tl-nav">
+    <button onclick="tlMove(1)" ${idx>=dates.length-1?"disabled":""}>← 前一天</button>
+    <span class="tl-date">${sd(ds)} 周${wd(ds)}${ds===today?" · 今天":""}</span>
+    <button onclick="tlMove(-1)" ${idx<=0?"disabled":""}>后一天 →</button>
+  </div>`;
+
+  if (!blocks.length && !meals.length && !notes.length) {
+    html += `<section class="card"><p class="empty">这一天还没有带时间的记录。打卡或补记之后,这里会长出时间块。</p></section>`;
+  } else {
+    html += `<div class="tl-wrap" style="height:${H}px">`;
+    for (let m = lo; m <= hi; m += 60) html += `<div class="tl-hour" style="top:${(m-lo)*PX}px">${pad(m/60)}:00</div>`;
+    if (ds === today) {
+      const nm = minOfDay(Date.now(), ds);
+      if (nm >= lo && nm <= hi) html += `<div class="tl-now" style="top:${(nm-lo)*PX}px"></div>`;
+    }
+    const leftPad = 42, rightPad = 6;
+    for (const b of blocks) {
+      const laneW = `calc((100% - ${leftPad+rightPad}px) / ${nLanes})`;
+      const top = (b.s-lo)*PX, height = Math.max(16, (b.e-b.s)*PX);
+      html += `<div class="tl-block ${b.cls}${b.live?" live":""}" title="${esc(b.note||"")}" style="top:${top}px;height:${height}px;left:calc(${leftPad}px + ${laneW} * ${b.lane});width:calc(${laneW} - 4px)">
+        ${esc(b.text)}${height>30?`<span class="bt">${pad(Math.floor(b.s/60))}:${pad(b.s%60)}–${b.live?"…":pad(Math.floor(b.e/60))+":"+pad(b.e%60)} ${fmtMin(b.e-b.s)}</span>`:""}
+      </div>`;
+    }
+    for (const m of meals) {
+      if (m.min < lo || m.min > hi) continue;
+      html += `<div class="tl-meal" style="top:${(m.min-lo)*PX - 8}px;right:6px">🍚 ${esc(m.label.slice(0,12))}</div>`;
+    }
+    for (const n of notes) {
+      if (n.min < lo || n.min > hi) continue;
+      html += `<div class="tl-note" style="top:${(n.min-lo)*PX - 8}px">${esc(n.label)}</div>`;
+    }
+    html += `</div>`;
+    html += `<div class="tl-legend">
+      <span><i style="background:var(--green)"></i>项目</span>
+      <span><i style="background:var(--amber)"></i>计划</span>
+      <span><i style="background:var(--life)"></i>生活</span>
+      <span><i style="background:#FBE9C5;border:1px solid var(--amber);border-radius:999px"></i>感想</span>
+      <span><i style="background:#fff;border:1px solid var(--red);border-radius:999px"></i>饮食</span>
+    </div>`;
+    const workMin = blocks.filter(b=>b.cls!=="life").reduce((s,b)=>s+(b.e-b.s),0);
+    const lifeMin = blocks.filter(b=>b.cls==="life").reduce((s,b)=>s+(b.e-b.s),0);
+    html += `<section class="card" style="margin-top:12px"><span class="hint">有记录的时间:项目 ${fmtMin(workMin)} · 生活 ${fmtMin(lifeMin)}。没记录的时间不等于浪费,它只是没被看见。</span></section>`;
+  }
+  document.getElementById("view-timeline").innerHTML = html;
+}
+function tlMove(dir){
+  const dates = lastN(DAYS_KEPT);
+  const idx = dates.indexOf(tlDate);
+  const ni = idx + dir;
+  if (ni >= 0 && ni < dates.length) { tlDate = dates[ni]; renderTimeline(); }
+}
+
+/* ================= 统计 ================= */
+function dayWorkStats(ds){
+  const d = days[ds];
+  const perLine = {};
+  let lifeMin = 0, workMin = 0;
+  if (d) {
+    for (const a of (d.acts||[])) {
+      if (!a.endAt) continue;
+      const m = (a.endAt-a.startAt)/60000;
+      if (a.lineId) { perLine[a.lineId]=(perLine[a.lineId]||0)+m; workMin += m; } else lifeMin += m;
+    }
+    for (const p of (d.plans||[])) if (p.status==="done" && p.actualMin) { perLine[p.lineId]=(perLine[p.lineId]||0)+p.actualMin; workMin += p.actualMin; }
+  }
+  return {perLine, lifeMin, workMin};
+}
+function renderStats(){
+  const ds7 = lastN(7).reverse();
+  const statsByDay = {};
+  for (const ds of lastN(DAYS_KEPT)) statsByDay[ds] = dayWorkStats(ds);
+
+  let totalWork=0, totalPlan=0, totalDone=0, estSum=0, actSum=0, blockCount=0, blockMin=0;
+  for (const ds of lastN(7)) {
+    totalWork += statsByDay[ds].workMin;
+    const d = days[ds]; if (!d) continue;
+    for (const p of (d.plans||[])) {
+      totalPlan++;
+      if (p.status==="done") { totalDone++; if (p.estMin && p.actualMin!=null){ estSum+=p.estMin; actSum+=p.actualMin; } }
+    }
+    for (const a of (d.acts||[])) if (a.endAt && a.lineId) { blockCount++; blockMin += (a.endAt-a.startAt)/60000; }
+  }
+  const lastWeekWork = lastN(DAYS_KEPT).slice(7).reduce((s,ds)=>s+statsByDay[ds].workMin,0);
+  const wow = lastWeekWork>0 ? ((totalWork-lastWeekWork)/lastWeekWork*100).toFixed(0) : null;
+
+  /* 团队 7 天 */
+  const weekAgo = Date.now() - 7*864e5;
+  const tDone7 = tasks.filter(t=>t.doneAt && t.doneAt>weekAgo).length;
+  const tAssigned7 = tasks.filter(t=>t.assignedAt>weekAgo).length;
+
+  let html = `<section class="card">
+    <div class="sect"><h2>近 7 天 · 效率</h2><span class="hint">回看的意义:你做的几乎总比感觉的多</span></div>
+    <div class="kpis">
+      <div class="kpi"><div class="kv">${fmtMin(totalWork)}</div><div class="kl">项目时间${wow!==null?` (比上周${wow>=0?"+":""}${wow}%)`:""}</div></div>
+      <div class="kpi"><div class="kv">${totalPlan?Math.round(totalDone/totalPlan*100):0}%</div><div class="kl">计划完成率 ${totalDone}/${totalPlan}</div></div>
+      <div class="kpi"><div class="kv">${estSum?Math.round(actSum/estSum*100)+"%":"—"}</div><div class="kl">实际/预计用时比</div></div>
+      <div class="kpi"><div class="kv">${blockCount?fmtMin(blockMin/blockCount):"—"}</div><div class="kl">平均专注块时长</div></div>
+    </div>
+    ${estSum?`<p class="empty">${actSum/estSum>1.2?"你习惯低估时间,排计划时预估 ×1.5。":actSum/estSum<0.8?"你习惯高估时间,可以排得更满。":"时间预估相当准,保持。"}</p>`:""}
+    ${tAssigned7||tDone7?`<p class="empty">团队:本周布置 ${tAssigned7} 项,完成 ${tDone7} 项。详见"团队"页。</p>`:""}
+  </section>`;
+
+  const maxDay = Math.max(60, ...ds7.map(ds=>statsByDay[ds].workMin));
+  html += `<div class="statcols"><div><section class="card">
+    <div class="sect"><h3>每日项目时间</h3><span class="hint">7 天对比</span></div>
+    ${ds7.map(ds=>{
+      const w = statsByDay[ds].workMin;
+      return `<div class="barrow">
+        <span class="barlabel">${sd(ds)}周${wd(ds)}</span>
+        <div class="bartrack"><div class="barfill${ds===today?" amber":""}" style="width:${Math.min(100,w/maxDay*100)}%"></div></div>
+        <span class="barval">${w?fmtMin(w):"·"}</span></div>`;
+    }).join("")}
+  </section>`;
+
+  html += `<section class="card">
+    <div class="sect"><h3>项目线 × 每日</h3><span class="hint">分钟</span></div>
+    <div class="scrollx"><table class="stable">
+      <tr><th>线</th>${ds7.map(ds=>`<th class="num">${sd(ds).slice(3)}</th>`).join("")}<th class="num">合计</th></tr>
+      ${lines.map(l=>{
+        let sum=0;
+        const cells = ds7.map(ds=>{ const m=Math.round(statsByDay[ds].perLine[l.id]||0); sum+=m; return `<td class="num">${m||"·"}</td>`; }).join("");
+        return `<tr><td>${esc(l.name.slice(0,8))}</td>${cells}<td class="num"><b>${sum||"·"}</b></td></tr>`;
+      }).join("")}
+    </table></div>
+  </section></div><div>`;
+
+  let expTotal=0; const expByCat={}, expByDay={};
+  for (const ds of lastN(7)) {
+    const d = days[ds]; if (!d) continue;
+    for (const e of (d.expenses||[])) {
+      expTotal += e.amount;
+      expByCat[e.cat]=(expByCat[e.cat]||0)+e.amount;
+      expByDay[ds]=(expByDay[ds]||0)+e.amount;
+    }
+  }
+  html += `<section class="card">
+    <div class="sect"><h3>本周花销</h3><span class="hint">共 ¥${expTotal.toFixed(2)}</span></div>`;
+  if (expTotal === 0) html += `<p class="empty">本周还没有记账。</p>`;
+  else {
+    const maxCat = Math.max(...Object.values(expByCat));
+    html += Object.entries(expByCat).sort((a,b)=>b[1]-a[1]).map(([c,v])=>`
+      <div class="barrow"><span class="barlabel">${c}</span>
+      <div class="bartrack"><div class="barfill red" style="width:${v/maxCat*100}%"></div></div>
+      <span class="barval">¥${v.toFixed(0)}</span></div>`).join("");
+    html += `<table class="stable" style="margin-top:10px"><tr><th>日期</th><th class="num">金额</th></tr>` +
+      ds7.filter(ds=>expByDay[ds]).map(ds=>`<tr><td>${sd(ds)} 周${wd(ds)}</td><td class="num">¥${expByDay[ds].toFixed(2)}</td></tr>`).join("") + `</table>`;
+  }
+  html += `</section>`;
+
+  html += `<section class="card">
+    <div class="sect"><h3>一周思考</h3><span class="hint">日结 + 感想,看思考的变化</span></div>`;
+  let hasThought = false;
+  for (const ds of ds7.slice().reverse()) {
+    const d = days[ds]; if (!d) continue;
+    const sumT = d.summary, notes = (d.notes||[]);
+    if (!sumT && !notes.length) continue;
+    hasThought = true;
+    html += `<div style="margin-bottom:12px">
+      <div class="hint" style="font-family:ui-monospace,monospace">── ${sd(ds)} 周${wd(ds)} ──</div>`;
+    if (sumT) html += `<div class="notebox" style="margin-top:6px"><div class="ntext">${esc(sumT)}</div><div class="nmeta"><span>日结</span></div></div>`;
+    html += notes.map(n=>`<div class="notebox${n.kind==="摘录"?" excerpt":""}" style="margin-top:6px"><div class="ntext">${esc(n.text)}</div><div class="nmeta"><span>${n.kind} · ${hm(n.ts)}</span></div></div>`).join("");
+    html += `</div>`;
+  }
+  if (!hasThought) html += `<p class="empty">还没有日结或感想。思考也是产出,别只记动作。</p>`;
+  html += `</section></div></div>`;
+
+  html += `<section class="card"><div class="sect"><h3>逐日回看</h3><span class="hint">点开看细节</span></div></section>`;
+  for (const ds of lastN(7)) {
+    const d = days[ds] || {};
+    const plans = d.plans||[], acts = (d.acts||[]).filter(a=>a.endAt);
+    const open = openStrip === ds;
+    const doneP = plans.filter(p=>p.status==="done");
+    html += `<div class="daystrip" onclick="toggleStrip('${ds}')">
+      <div class="strip-edge"><span>${sd(ds)} 周${wd(ds)}</span>
+        <span>P${doneP.length}/${plans.length} · ⏱${acts.length}${(d.meals||[]).length?` · 餐${d.meals.length}`:""}${(d.expenses||[]).length?` · ¥${d.expenses.reduce((s,e)=>s+e.amount,0).toFixed(0)}`:""}</span></div>
+      <div class="strip-frames">${(doneP.length+acts.length)===0
+        ? `<span class="strip-blank">— 空白帧 —</span>`
+        : doneP.map(()=>`<span class="strip-dot plan"></span>`).join("")
+          + acts.map(a=>`<span class="strip-dot${a.lineId?"":" life"}"></span>`).join("")}</div>`;
+    if (open) {
+      html += `<div class="strip-detail" onclick="event.stopPropagation()">`;
+      html += plans.map(p=>{
+        let t = p.status==="done"
+          ? ` <span class="est">${p.startAt?hm(p.startAt)+"→"+hm(p.endAt):""}${p.estMin?` 预${fmtMin(p.estMin)}`:""}${p.actualMin!=null?`/实${fmtMin(p.actualMin)}`:""}</span>`
+          : ` <span class="est">(${STATUS_CN[p.status]})</span>`;
+        return `<p>${p.status==="done"?"✓":"○"} <b>${esc(lineName(p.lineId))}</b>${esc(p.text)}${t}${p.note?`<br><span class="est">📝 ${esc(p.note)}</span>`:""}</p>`;
+      }).join("");
+      html += acts.map(a=>`<p>⏱ <b>${esc(lineName(a.lineId))}</b>${esc(a.text)} <span class="est">${hm(a.startAt)}–${hm(a.endAt)} (${fmtMin(Math.max(1,(a.endAt-a.startAt)/60000))})</span>${a.note?`<br><span class="est">📝 ${esc(a.note)}</span>`:""}</p>`).join("");
+      if ((d.meals||[]).length) html += `<p class="strip-meals">${d.meals.map(m=>m.type+"·"+esc(m.text)).join(" / ")}</p>`;
+      if ((d.expenses||[]).length) html += `<p class="strip-meals">花销:${d.expenses.map(e=>e.cat+"¥"+e.amount.toFixed(0)+(e.note?"("+esc(e.note)+")":"")).join(" / ")}</p>`;
+      if (d.summary) html += `<p>✎ ${esc(d.summary)}</p>`;
+      if (!plans.length && !acts.length && !(d.meals||[]).length) html += `<p>这一天没有记录。</p>`;
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+  document.getElementById("view-stats").innerHTML = html;
+}
+
+/* ================= 管理 ================= */
+function renderManage(){
+  const statsFor = id => {
+    let c=0, last=null;
+    for (const [ds,d] of Object.entries(days)) {
+      const n = (d.acts||[]).filter(a=>a.lineId===id && a.endAt).length
+              + (d.plans||[]).filter(p=>p.lineId===id && p.status==="done").length;
+      if (n>0){ c+=n; if(!last||ds>last) last=ds; }
+    }
+    const idle = last ? Math.round((new Date(today)-new Date(last))/864e5) : null;
+    return {c, idle};
+  };
+  let html = "";
+  for (const layer of LAYERS) {
+    const ls = lines.filter(l=>l.layer===layer.id);
+    html += `<section class="card">
+      <div class="sect"><h2><span class="laymark">${layer.mark}</span>${layer.name}</h2><span class="hint">${layer.desc}</span></div>`;
+    html += ls.length===0 ? `<p class="empty">这一层还没有项目线。</p>` :
+      `<ul class="linelist">` + ls.map(l=>{
+        const s = statsFor(l.id);
+        const stat = s.c>0
+          ? `<span class="dots">${"●".repeat(Math.min(s.c,7))}</span><span>近期 ${s.c} 笔</span>${s.idle>0?`<span>· 停了 ${s.idle} 天</span>`:""}`
+          : `<span class="idle">近期无记录</span>`;
+        return `<li><div class="linename">${esc(l.name)}</div>
+          <button class="del" onclick="delLine('${l.id}')">×</button>
+          <div class="linestat">${stat}</div></li>`;
+      }).join("") + `</ul>`;
+    html += `</section>`;
+  }
+  html += `<section class="card">
+    <div class="inputrow" style="margin-top:0"><input type="text" id="newLineName" placeholder="新项目线名称…"></div>
+    <div class="chips" style="margin-top:10px">${LAYERS.map(ly=>
+      `<button class="chip${ly.id===newLayer?" on":""}" onclick="newLayer='${ly.id}';renderManage()">${ly.name}</button>`).join("")}</div>
+    <div class="inputrow"><button class="btn full" onclick="addLine()">＋ 添加项目线</button></div>
+  </section>`;
+  document.getElementById("linesPanel").innerHTML = html;
+}
+async function addLine(){
+  const inp = document.getElementById("newLineName");
+  const n = inp.value.trim();
+  if (!n) return;
+  lines.push({id:uid(), name:n, layer:newLayer});
+  await saveLines(); renderAll();
+}
+async function delLine(id){
+  if (!confirm("删除这条项目线?(已有记录会保留为'已删除的线')")) return;
+  lines = lines.filter(l=>l.id!==id);
+  if (selPlanLine===id) selPlanLine = lines[0]?.id || null;
+  if (selActLine===id) selActLine = LIFE;
+  if (selTaskLine===id) selTaskLine = null;
+  await saveLines(); renderAll();
+}
+
+/* ================= 备份 ================= */
+async function exportData(){
+  const msg = document.getElementById("backupMsg");
+  msg.textContent = "正在打包…";
+  const withImg = document.getElementById("expWithImg").checked;
+  const data = {};
+  data["worklines"] = lines;
+  data["members"] = members;
+  data["tasks"] = tasks;
+  const dayKeys = await store.list("day:");
+  const keys = dayKeys.length ? dayKeys : lastN(60).map(ds=>"day:"+ds);
+  for (const k of keys) {
+    const v = await store.get(k);
+    if (v) data[k] = v;
+  }
+  if (withImg) {
+    const imgKeys = await store.list("img:");
+    for (const k of imgKeys) {
+      const v = await store.get(k);
+      if (v) data[k] = v;
+    }
+  }
+  const payload = JSON.stringify({app:"studio-log", version:5, exportedAt:new Date().toISOString(), data});
+  const fname = `studio-log-backup-${today}.json`;
+  try {
+    const blob = new Blob([payload], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = fname;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    msg.textContent = `已导出 ${fname}(${(payload.length/1024).toFixed(0)} KB)。如果没有自动下载,下方文本框可全选复制保存。`;
+  } catch(e) {
+    msg.textContent = "浏览器拦截了下载,请复制下方内容保存为 .json 文件。";
+  }
+  const fb = document.getElementById("exportFallback");
+  fb.style.display = "block";
+  fb.value = payload;
+}
+async function importData(input){
+  const file = input.files[0]; input.value = "";
+  if (!file) return;
+  const msg = document.getElementById("backupMsg");
+  try {
+    const text = await file.text();
+    const obj = JSON.parse(text);
+    if (obj.app !== "studio-log" || !obj.data) throw new Error("不是本工具的备份文件");
+    if (!confirm(`将恢复 ${Object.keys(obj.data).length} 条数据,与现有数据合并(同名以备份为准)。继续?`)) return;
+    for (const [k,v] of Object.entries(obj.data)) await store.set(k, v);
+    if (obj.data.worklines) lines = obj.data.worklines;
+    if (obj.data.members) members = obj.data.members;
+    if (obj.data.tasks) tasks = obj.data.tasks;
+    for (const ds of lastN(DAYS_KEPT)) {
+      const d = await store.get("day:"+ds);
+      if (d) days[ds] = d;
+    }
+    msg.textContent = "恢复完成。";
+    renderAll();
+  } catch(e) {
+    msg.textContent = "恢复失败:" + e.message;
+  }
+}
+
+/* ================= 其他 ================= */
+function toggleStrip(ds){ openStrip = openStrip===ds ? null : ds; renderStats(); hydrateImages(); }
+function switchTab(v, btn){
+  document.querySelectorAll(".view").forEach(el=>el.classList.remove("show"));
+  document.getElementById("view-"+v).classList.add("show");
+  document.querySelectorAll(".tab").forEach(el=>el.classList.remove("active"));
+  btn.classList.add("active");
+  if (v === "timeline") renderTimeline();
+  if (v === "stats") renderStats();
+  if (v === "team") renderTeam();
+}
+document.getElementById("actInput").addEventListener("keydown", e=>{ if(e.key==="Enter") startAct(); });
+document.getElementById("mealInput").addEventListener("keydown", e=>{ if(e.key==="Enter") submitMeal(); });
+document.getElementById("planInput").addEventListener("keydown", e=>{ if(e.key==="Enter") addPlan(); });
+document.getElementById("expNote").addEventListener("keydown", e=>{ if(e.key==="Enter") addExp(); });
+</script>
+</body>
+</html>
