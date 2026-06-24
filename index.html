@@ -206,6 +206,44 @@
     .kpis { grid-template-columns:repeat(4,1fr); }
     .statcols { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; align-items:start; }
   }
+
+  /* 计划截止 pill */
+  .duepill { font-size:10px; border-radius:4px; padding:1px 6px; margin-left:6px; }
+  .duepill.norm { background:#EEE7D5; color:#6B6354; }
+  .duepill.soon { background:var(--amber); color:var(--edge); }
+  .duepill.over { background:var(--red); color:#fff; }
+
+  /* 计划/实际 双栏时间轴 */
+  .tl-cols-head { display:flex; margin-bottom:4px; font-size:11px; color:#8C8270; font-family:ui-monospace,monospace; }
+  .tl-cols-head .lab { flex:1; text-align:center; }
+  .tl-coldiv { position:absolute; top:0; bottom:0; border-left:1px dashed #D9CFBC; z-index:1; }
+  .tl-block.ghost { background:repeating-linear-gradient(45deg,rgba(92,114,89,.12),rgba(92,114,89,.12) 6px,transparent 6px,transparent 12px); border:1.5px dashed var(--green); color:var(--edge); }
+  .tl-block.ghost.life { border-color:var(--life); background:repeating-linear-gradient(45deg,rgba(138,126,158,.14),rgba(138,126,158,.14) 6px,transparent 6px,transparent 12px); }
+  .tl-block.ghost .bt { opacity:.75; }
+
+  /* 日历 */
+  .cal-nav { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .cal-nav button { background:transparent; border:1px solid var(--line); border-radius:8px; padding:7px 14px; color:var(--ink); font-size:14px; cursor:pointer; }
+  .cal-title { font-family:"Songti SC",serif; font-weight:700; font-size:16px; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-wd { text-align:center; font-size:11px; color:#8C8270; padding:4px 0; }
+  .cal-cell { aspect-ratio:1/1.05; border:1px solid var(--line); border-radius:8px; background:#fff; padding:4px; cursor:pointer; display:flex; flex-direction:column; overflow:hidden; position:relative; }
+  .cal-cell.blank { background:transparent; border:none; cursor:default; }
+  .cal-cell.today { border-color:var(--amber); box-shadow:0 0 0 1px var(--amber) inset; }
+  .cal-cell.sel { border-color:var(--green); box-shadow:0 0 0 2px var(--green) inset; }
+  .cal-day { font-size:12px; font-family:ui-monospace,monospace; color:var(--ink); }
+  .cal-day.off { color:var(--dim); }
+  .cal-marks { margin-top:auto; display:flex; flex-direction:column; gap:2px; width:100%; }
+  .cal-ev { font-size:9px; line-height:1.25; background:#FBE9C5; color:var(--edge); border-radius:3px; padding:0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cal-dots { display:flex; gap:2px; flex-wrap:wrap; }
+  .cal-dot { width:5px; height:5px; border-radius:50%; background:var(--green); display:inline-block; }
+  .cal-dot.life { background:var(--life); }
+  .cal-dot.plan { background:var(--amber); }
+  .cal-panel .cal-evrow { display:flex; align-items:flex-start; gap:8px; padding:8px 0; border-bottom:1px dashed var(--line); }
+  .cal-panel .cal-evrow:last-child { border-bottom:none; }
+  .cal-evrow .cal-evdot { width:8px; height:8px; border-radius:50%; background:var(--amber); flex-shrink:0; margin-top:5px; }
+  .cal-evrow .evt { flex:1; font-size:14px; }
+  @media (min-width:920px){ .cal-cell{ aspect-ratio:1/0.62; } }
 </style>
 </head>
 <body>
@@ -247,11 +285,21 @@
       <div id="carryover"></div>
 
       <section class="card">
-        <div class="sect"><h2>今日计划</h2><span class="hint" id="planStat"></span></div>
+        <div class="sect"><h2 id="planTitle">今日计划</h2><span class="hint" id="planStat"></span></div>
         <div class="chips" id="planLineChips"></div>
         <div class="inputrow">
           <input type="text" id="planInput" placeholder="计划做什么…">
           <input type="number" class="est-input" id="planEst" placeholder="预计分" min="1">
+        </div>
+        <div class="inputrow" style="align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px">
+          <span class="hint">放到</span><span class="chips" id="planDateChips" style="display:inline-flex"></span>
+          <span class="hint">排时段</span>
+          <input type="time" class="tinput" id="planFrom" title="计划开始" style="width:96px">
+          <span class="hint">至</span>
+          <input type="time" class="tinput" id="planTo" title="计划结束" style="width:96px">
+        </div>
+        <div class="inputrow" style="align-items:center;flex-wrap:wrap;gap:6px">
+          <span class="hint">截止</span><input type="date" class="tinput" id="planDue" style="flex:1;min-width:0">
         </div>
         <div class="inputrow" style="margin-top:8px"><button class="btn full" onclick="addPlan()">＋ 写下计划</button></div>
         <div id="planList"></div>
@@ -312,6 +360,9 @@
   <!-- ============ 时间轴 ============ -->
   <div class="view" id="view-timeline"></div>
 
+  <!-- ============ 日历 ============ -->
+  <div class="view" id="view-calendar"></div>
+
   <!-- ============ 团队 ============ -->
   <div class="view" id="view-team"></div>
 
@@ -368,6 +419,7 @@
 <nav>
   <button class="tab active" onclick="switchTab('today',this)">今日</button>
   <button class="tab" onclick="switchTab('timeline',this)">时间轴</button>
+  <button class="tab" onclick="switchTab('calendar',this)">日历</button>
   <button class="tab" onclick="switchTab('team',this)">团队</button>
   <button class="tab" onclick="switchTab('stats',this)">统计</button>
   <button class="tab" onclick="switchTab('manage',this)">管理</button>
@@ -427,30 +479,31 @@ const tsFrom = (ds, hmStr) => { const [h,m]=hmStr.split(":").map(Number); return
 const tsFromDateTime = (ds, hmStr) => tsFrom(ds, hmStr);
 const parseTags = s => (s||"").split(/[,，\s]+/).map(t=>t.trim()).filter(Boolean);
 
-const LAYERS = [
+const DEFAULT_LAYERS = [
   {id:"daily", name:"日更线", desc:"数量即进展", mark:"D"},
   {id:"weekly", name:"周推进", desc:"看里程碑", mark:"W"},
   {id:"monthly", name:"月资产", desc:"只问厚不厚", mark:"M"},
 ];
 const DEFAULT_LINES = [
-  {id:"l1", name:"日更内容 / 壁虎日常", layer:"daily"},
-  {id:"l2", name:"Prompt 与视觉迭代", layer:"daily"},
-  {id:"l3", name:"星光计划 · 比赛短片", layer:"weekly"},
-  {id:"l4", name:"平台合作与谈判", layer:"weekly"},
-  {id:"l5", name:"一洄 / Gizmo 世界观", layer:"monthly"},
-  {id:"l6", name:"审美积累库", layer:"monthly"},
+  {id:"l1", name:"主业工作", layer:"daily"},
+  {id:"l2", name:"学习提升", layer:"weekly"},
+  {id:"l3", name:"副业 / 个人项目", layer:"weekly"},
+  {id:"l4", name:"长期目标", layer:"monthly"},
 ];
 const MEAL_TYPES = ["早餐","午餐","晚餐","加餐"];
 const EXP_CATS = ["餐饮","制作","工具","交通","其他"];
 const STATUS_CN = {todo:"待办", doing:"进行中", done:"完成", deferred:"已顺延", cancelled:"已取消", open:"进行中"};
 const LIFE = "__life__";
 
-let lines = [], days = {}, members = [], tasks = [], allTags = [];
+let lines = [], days = {}, members = [], tasks = [], allTags = [], layers = [], events = [];
 let selPlanLine = null, selActLine = LIFE, selExpCat = "餐饮", noteKind = "感想";
 let selTaskMember = null, selTaskLine = null;
+let selPlanDate = today;        // 计划放到哪天(今天/明天)
 let actTags = [];               // 当前"现在在做"已选标签
 let selMeal = (()=>{ const h=new Date().getHours(); return h<10?"早餐":h<14?"午餐":h<21?"晚餐":"加餐"; })();
 let openStrip = null, newLayer = "daily", tlDate = today, teamShowDone = false;
+let calMonth = today.slice(0,7), calSel = today, calDays = {};
+const tomorrowDS = () => dateStr(new Date(Date.now()+864e5));
 let apiKey = "";
 let pendingImg = { meal:null };
 const imgCache = {};
@@ -467,6 +520,9 @@ async function saveLines(){ await store.set("worklines", lines); }
 async function saveMembers(){ await store.set("members", members); }
 async function saveTasks(){ await store.set("tasks", tasks); }
 async function saveTags(){ await store.set("alltags", allTags); }
+async function saveLayers(){ await store.set("layers", layers); }
+async function saveEvents(){ await store.set("events", events); }
+function layerById(id){ return layers.find(l=>l.id===id) || layers[0] || DEFAULT_LAYERS[0]; }
 function lineName(id){
   if (id === LIFE || !id) return "生活";
   return (lines.find(l=>l.id===id)||{}).name || "已删除的线";
@@ -529,17 +585,24 @@ function toggleImg(el){ el.classList.toggle("big"); }
 
 /* ================= 初始化 ================= */
 (async function init(){
+  const savedLayers = await store.get("layers");
+  layers = (savedLayers && savedLayers.length) ? savedLayers : DEFAULT_LAYERS.slice();
+  if (!savedLayers) await saveLayers();
   const savedL = await store.get("worklines");
   lines = (savedL && savedL.length) ? savedL : DEFAULT_LINES.slice();
   if (!savedL) await saveLines();
   members = (await store.get("members")) || [];
   tasks = (await store.get("tasks")) || [];
   allTags = (await store.get("alltags")) || ["交通","会议","沟通","杂事"];
+  events = (await store.get("events")) || [];
   apiKey = (await store.get("apikey")) || "";
   for (const ds of lastN(DAYS_KEPT)) {
     const d = await store.get("day:"+ds);
     if (d) days[ds] = d;
   }
+  const dtmr = await store.get("day:"+tomorrowDS());   // 预加载明天,供"提前规划"用
+  if (dtmr) days[tomorrowDS()] = dtmr;
+  newLayer = layers[0]?.id || "daily";
   selPlanLine = lines[0]?.id || null;
   selTaskMember = members[0]?.id || null;
   document.getElementById("loading").style.display = "none";
@@ -551,11 +614,12 @@ function toggleImg(el){ el.classList.toggle("big"); }
   setNoteKind("感想");
   if (backendName === "mem") alert("注意:当前环境无法持久保存,关闭后数据会丢失。请用 Safari/Chrome 打开本文件,或部署到网址。");
   renderAll();
+  loadCalMonth(calMonth);
   setInterval(()=>{ renderRunning(); }, 30000);
 })();
 
 /* ================= 渲染总控 ================= */
-function renderAll(){ renderEdge(); renderActUI(); renderRunning(); renderCarryover(); renderToday(); renderTimeline(); renderTeam(); renderStats(); renderManage(); hydrateImages(); }
+function renderAll(){ renderEdge(); renderActUI(); renderRunning(); renderCarryover(); renderToday(); renderTimeline(); renderCalendar(); renderTeam(); renderStats(); renderManage(); hydrateImages(); }
 
 function renderEdge(){
   const d = dayOf(today);
@@ -590,8 +654,10 @@ function openEditModal(kind, ds, id){
       <label>内容</label><input type="text" id="m_text" value="${esc(item.text)}">
       <label>归属</label>${lineSelectHTML("m_line", item.lineId)}
       <label>预计分钟</label><input type="text" id="m_est" value="${item.estMin||''}">
-      <label>开始时间</label><input type="time" class="tinput" id="m_start" value="${item.startAt?hm(item.startAt):''}">
-      <label>结束时间</label><input type="time" class="tinput" id="m_end" value="${item.endAt?hm(item.endAt):''}">
+      <label>计划时段(打算几点做)</label><div class="timegrid"><input type="time" class="tinput" id="m_pstart" value="${item.planStart?hm(item.planStart):''}"><span>至</span><input type="time" class="tinput" id="m_pend" value="${item.planEnd?hm(item.planEnd):''}"></div>
+      <label>截止日期</label><input type="date" class="tinput" id="m_due" value="${item.dueAt?dateStr(new Date(item.dueAt)):''}">
+      <label>实际开始</label><input type="time" class="tinput" id="m_start" value="${item.startAt?hm(item.startAt):''}">
+      <label>实际结束</label><input type="time" class="tinput" id="m_end" value="${item.endAt?hm(item.endAt):''}">
       <label>备注</label><textarea id="m_note" rows="2">${esc(item.note||'')}</textarea>`;
   } else if (kind === "note") {
     item = d.notes.find(x=>x.id===id);
@@ -666,6 +732,11 @@ async function saveModal(){
     p.text = val("m_text").trim() || p.text;
     const lv = val("m_line"); p.lineId = (lv===LIFE)?p.lineId:lv;
     p.estMin = val("m_est") ? Math.max(1,parseInt(val("m_est"))) : null;
+    const ps = val("m_pstart"), pe = val("m_pend");
+    p.planStart = ps ? tsFrom(ds, ps) : null;
+    p.planEnd = pe ? tsFrom(ds, pe) : null;
+    if (p.planStart && p.planEnd && p.planEnd <= p.planStart) p.planEnd = p.planStart + 30*60000;
+    p.dueAt = val("m_due") ? dayStart(val("m_due")) + (23*60+59)*60000 : null;
     const s = val("m_start"), e = val("m_end");
     p.startAt = s ? tsFrom(ds, s) : null;
     p.endAt = e ? tsFrom(ds, e) : null;
@@ -890,11 +961,16 @@ function renderToday(){
   const d = dayOf(today);
   document.getElementById("planLineChips").innerHTML = lines.map(l =>
     `<button class="chip${selPlanLine===l.id?" on":""}" onclick="selPlanLine='${l.id}';renderToday()">${esc(l.name)}</button>`).join("");
-  const done = d.plans.filter(p=>p.status==="done").length;
-  document.getElementById("planStat").textContent = d.plans.length ? `${done}/${d.plans.length} 完成` : "先写,再做";
-  document.getElementById("planList").innerHTML = d.plans.length === 0
-    ? `<p class="empty">还没有计划。写下来的那一刻,混乱就少了一半。</p>`
-    : `<ul>` + d.plans.map(p => renderPlan(p)).join("") + `</ul>`;
+  const tmr = tomorrowDS();
+  document.getElementById("planDateChips").innerHTML = [{ds:today,label:"今天"},{ds:tmr,label:"明天"}]
+    .map(c=>`<button class="chip${selPlanDate===c.ds?" on":""}" onclick="selPlanDate='${c.ds}';renderToday()">${c.label}</button>`).join("");
+  const pd = dayOf(selPlanDate);
+  const done = pd.plans.filter(p=>p.status==="done").length;
+  document.getElementById("planTitle").textContent = selPlanDate===today ? "今日计划" : "明日计划";
+  document.getElementById("planStat").textContent = pd.plans.length ? `${done}/${pd.plans.length} 完成` : "先写,再做";
+  document.getElementById("planList").innerHTML = pd.plans.length === 0
+    ? `<p class="empty">${selPlanDate===today?"还没有计划。写下来的那一刻,混乱就少了一半。":"明天还没排。提前排好时段,明天照着做。"}</p>`
+    : `<ul>` + pd.plans.map(p => renderPlan(p, selPlanDate)).join("") + `</ul>`;
 
   document.getElementById("noteList").innerHTML = d.notes.length === 0 ? "" :
     d.notes.slice().reverse().map(n => `
@@ -919,10 +995,20 @@ function renderToday(){
   renderExp();
 }
 
-function renderPlan(p){
+function duePill(p){
+  if (!p.dueAt || p.status==="done" || p.status==="cancelled") return "";
+  const left = p.dueAt - Date.now();
+  const over = left < 0, soon = !over && left < 2*864e5;
+  const lab = sd(dateStr(new Date(p.dueAt)));
+  return `<span class="duepill ${over?"over":soon?"soon":"norm"}">截止${lab}${over?"·超期":soon?"·快到":""}</span>`;
+}
+function renderPlan(p, ds){
+  ds = ds || today;
+  const isToday = ds === today;
   const cls = p.status === "done" ? " done" : (p.status === "deferred" || p.status === "cancelled") ? " gone" : "";
   let times = "";
-  if (p.estMin) times += `预计 ${fmtMin(p.estMin)}`;
+  if (p.planStart) times += `计划 ${hm(p.planStart)}${p.planEnd?"–"+hm(p.planEnd):""}`;
+  if (p.estMin) times += `${times?" · ":""}预计 ${fmtMin(p.estMin)}`;
   if (p.startAt) times += `${times?" · ":""}始 ${hm(p.startAt)}`;
   if (p.endAt) times += ` → 终 ${hm(p.endAt)}`;
   if (p.actualMin != null) {
@@ -930,23 +1016,23 @@ function renderPlan(p){
     times += ` · <span class="${diffCls}">实际 ${fmtMin(p.actualMin)}${p.estMin ? (p.actualMin>p.estMin?` (+${fmtMin(p.actualMin-p.estMin)})`:` (-${fmtMin(p.estMin-p.actualMin)})`) : ""}</span>`;
   }
   let acts = "";
-  if (p.status === "todo") acts = `
+  if (isToday && p.status === "todo") acts = `
     <button class="pbtn go" onclick="startPlan('${p.id}')">▶ 开始</button>
     <button class="pbtn fin" onclick="finishPlan('${p.id}')">✓ 完成</button>
     <button class="pbtn" onclick="deferPlan('${p.id}')">顺延</button>
     <button class="pbtn warn" onclick="cancelPlan('${p.id}')">取消</button>
-    <button class="pbtn mini" onclick="openEditModal('plan','${today}','${p.id}')">编辑</button>`;
-  else if (p.status === "doing") acts = `
+    <button class="pbtn mini" onclick="openEditModal('plan','${ds}','${p.id}')">编辑</button>`;
+  else if (isToday && p.status === "doing") acts = `
     <button class="pbtn fin" onclick="finishPlan('${p.id}')">✓ 完成</button>
     <button class="pbtn" onclick="deferPlan('${p.id}')">顺延</button>
     <button class="pbtn warn" onclick="cancelPlan('${p.id}')">取消</button>
-    <button class="pbtn mini" onclick="openEditModal('plan','${today}','${p.id}')">编辑</button>`;
-  else acts = `<button class="pbtn mini" onclick="openEditModal('plan','${today}','${p.id}')">编辑</button>
-    <button class="pbtn mini warn" onclick="delPlan('${p.id}')">删除</button>`;
+    <button class="pbtn mini" onclick="openEditModal('plan','${ds}','${p.id}')">编辑</button>`;
+  else acts = `<button class="pbtn mini" onclick="openEditModal('plan','${ds}','${p.id}')">编辑</button>
+    <button class="pbtn mini warn" onclick="delPlan('${ds}','${p.id}')">删除</button>`;
   return `<li class="plan${cls}">
     <div class="plan-edge">
       <span class="status-tag ${p.status}">${STATUS_CN[p.status]}</span>
-      <span class="fl">${esc(lineName(p.lineId))}</span>
+      <span class="fl">${esc(lineName(p.lineId))}${duePill(p)}</span>
     </div>
     <div class="plan-body">
       <div class="plan-text${p.status==='cancelled'?' struck':''}"><span>${esc(p.text)}</span></div>
@@ -963,20 +1049,29 @@ async function addPlan(){
   const est = document.getElementById("planEst");
   const t = inp.value.trim();
   if (!t || !selPlanLine) return;
-  dayOf(today).plans.push({
+  const ds = selPlanDate;
+  const fromV = document.getElementById("planFrom").value;
+  const toV = document.getElementById("planTo").value;
+  const dueV = document.getElementById("planDue").value;
+  const planStart = fromV ? tsFrom(ds, fromV) : null;
+  let planEnd = toV ? tsFrom(ds, toV) : null;
+  if (planStart && planEnd && planEnd <= planStart) planEnd = planStart + 30*60000;
+  dayOf(ds).plans.push({
     id:uid(), lineId:selPlanLine, text:t,
     estMin: est.value ? Math.max(1, parseInt(est.value)) : null,
-    status:"todo", startAt:null, endAt:null, actualMin:null, note:""
+    status:"todo", startAt:null, endAt:null, actualMin:null, note:"",
+    planStart, planEnd, dueAt: dueV ? dayStart(dueV) + (23*60+59)*60000 : null
   });
   inp.value = ""; est.value = "";
-  await saveDay(today); renderAll();
+  document.getElementById("planFrom").value = ""; document.getElementById("planTo").value = ""; document.getElementById("planDue").value = "";
+  await saveDay(ds); renderAll();
 }
 function findPlan(id){ return dayOf(today).plans.find(p=>p.id===id); }
 async function startPlan(id){ const p=findPlan(id); if(!p)return; p.status="doing"; p.startAt=Date.now(); await saveDay(today); renderAll(); }
 async function finishPlan(id){ const p=findPlan(id); if(!p)return; p.status="done"; p.endAt=Date.now(); if(p.startAt)p.actualMin=Math.max(1,Math.round((p.endAt-p.startAt)/60000)); await saveDay(today); renderAll(); }
 async function deferPlan(id){ const p=findPlan(id); if(!p)return; p.status="deferred"; const tmr=dateStr(new Date(Date.now()+864e5)); dayOf(tmr).plans.push({...p,id:uid(),status:"todo",startAt:null,endAt:null,actualMin:null}); await saveDay(today); await saveDay(tmr); renderAll(); }
 async function cancelPlan(id){ const p=findPlan(id); if(!p)return; p.status="cancelled"; await saveDay(today); renderAll(); }
-async function delPlan(id){ if(!confirm("删除?"))return; const d=dayOf(today); d.plans=d.plans.filter(p=>p.id!==id); await saveDay(today); renderAll(); }
+async function delPlan(ds,id){ if(!confirm("删除?"))return; const d=dayOf(ds); d.plans=d.plans.filter(p=>p.id!==id); await saveDay(ds); renderAll(); }
 async function carryToToday(ds,pid){ const p=(days[ds].plans||[]).find(x=>x.id===pid); if(!p)return; p.status="deferred"; dayOf(today).plans.push({...p,id:uid(),status:"todo",startAt:null,endAt:null,actualMin:null}); await saveDay(ds); await saveDay(today); renderAll(); }
 async function dropOld(ds,pid){ const p=(days[ds].plans||[]).find(x=>x.id===pid); if(!p)return; p.status="cancelled"; await saveDay(ds); renderAll(); }
 function renderCarryover(){
@@ -1105,81 +1200,176 @@ async function doneTask(id){ const t=tasks.find(x=>x.id===id); if(!t)return; con
 async function delTask(id){ if(!confirm("删除这条任务记录?"))return; tasks=tasks.filter(x=>x.id!==id); await saveTasks(); renderTeam(); renderEdge(); }
 
 /* ================= 时间轴 ================= */
+function tlRange(){ return [tomorrowDS(), ...lastN(DAYS_KEPT)]; }   // 含明天,从新到旧
 function renderTimeline(){
   const ds = tlDate;
   const d = days[ds] || {};
-  const acts = (d.acts||[]);
-  const plans = (d.plans||[]).filter(p=>p.startAt);
-  const blocks = [];
-  for (const a of acts) blocks.push({ id:a.id, kind:"act",
-    s: minOfDay(a.startAt, ds),
-    e: a.endAt ? minOfDay(a.endAt, ds) : (ds===today ? minOfDay(Date.now(), ds) : minOfDay(a.startAt,ds)+30),
-    text: a.text, cls: a.lineId ? "work" : "life", live: !a.endAt, note: a.note, tags:a.tags });
-  for (const p of plans) blocks.push({ id:p.id, kind:"plan",
-    s: minOfDay(p.startAt, ds),
-    e: p.endAt ? minOfDay(p.endAt, ds) : (ds===today ? minOfDay(Date.now(), ds) : minOfDay(p.startAt,ds)+30),
-    text: p.text, cls: "plan", live: p.status==="doing", note: p.note });
-  blocks.forEach(b => { if (b.e <= b.s) b.e = b.s + 4; });
+  // 左栏:计划时段(planStart/planEnd)。右栏:实际发生(打卡 + 已执行计划的真实起止)
+  const planned = [];
+  for (const p of (d.plans||[])) if (p.planStart && p.planEnd) planned.push({ id:p.id, kind:"plan",
+    s:minOfDay(p.planStart,ds), e:minOfDay(p.planEnd,ds), text:p.text, cls:p.lineId?"work":"life", done:p.status==="done", note:p.note });
+  const actual = [];
+  for (const a of (d.acts||[])) actual.push({ id:a.id, kind:"act",
+    s:minOfDay(a.startAt,ds),
+    e:a.endAt?minOfDay(a.endAt,ds):(ds===today?minOfDay(Date.now(),ds):minOfDay(a.startAt,ds)+30),
+    text:a.text, cls:a.lineId?"work":"life", live:!a.endAt, note:a.note, tags:a.tags });
+  for (const p of (d.plans||[])) if (p.startAt && p.endAt) actual.push({ id:p.id, kind:"plan",
+    s:minOfDay(p.startAt,ds), e:minOfDay(p.endAt,ds), text:p.text, cls:"plan", live:p.status==="doing", note:p.note });
+  [...planned,...actual].forEach(b=>{ if(b.e<=b.s) b.e=b.s+4; });
   const meals = (d.meals||[]).map(m => { const [h,mi]=m.time.split(":").map(Number); return {min:h*60+mi, label:m.type+" "+m.text}; });
   const notes = (d.notes||[]).map(n => ({min:minOfDay(n.ts,ds), label:(n.kind==="摘录"?"❝":"✎")+" "+n.text.slice(0,10)}));
-  let lo=8*60, hi=23*60;
-  for (const b of blocks){ lo=Math.min(lo,b.s); hi=Math.max(hi,b.e); }
+  let lo=8*60, hi=22*60;
+  for (const b of [...planned,...actual]){ lo=Math.min(lo,b.s); hi=Math.max(hi,b.e); }
   for (const m of meals){ lo=Math.min(lo,m.min); hi=Math.max(hi,m.min+30); }
   for (const n of notes){ lo=Math.min(lo,n.min); hi=Math.max(hi,n.min+30); }
   if (ds===today) hi=Math.max(hi,minOfDay(Date.now(),ds)+20);
   lo=Math.floor(lo/60)*60; hi=Math.min(1440,Math.ceil(hi/60)*60);
-  blocks.sort((a,b)=>a.s-b.s||b.e-a.e);
-  const laneEnd=[];
-  for (const b of blocks){ let lane=laneEnd.findIndex(end=>end<=b.s); if(lane===-1){lane=laneEnd.length;laneEnd.push(0);} laneEnd[lane]=b.e; b.lane=lane; }
-  const nLanes=Math.max(1,laneEnd.length);
+  const pack = arr => { arr.sort((a,b)=>a.s-b.s||b.e-a.e); const le=[]; for(const b of arr){ let ln=le.findIndex(end=>end<=b.s); if(ln===-1){ln=le.length;le.push(0);} le[ln]=b.e; b.lane=ln; } return Math.max(1,le.length); };
+  const nL=pack(planned), nR=pack(actual);
   const PX=1.15, H=(hi-lo)*PX;
-  const dates=lastN(DAYS_KEPT); const idx=dates.indexOf(ds);
+  const dates=tlRange(); const idx=dates.indexOf(ds);
   let html=`<div class="tl-nav">
     <button onclick="tlMove(1)" ${idx>=dates.length-1?"disabled":""}>← 前一天</button>
-    <span class="tl-date">${sd(ds)} 周${wd(ds)}${ds===today?" · 今天":""}</span>
+    <span class="tl-date">${sd(ds)} 周${wd(ds)}${ds===today?" · 今天":ds===tomorrowDS()?" · 明天":""}</span>
     <button onclick="tlMove(-1)" ${idx<=0?"disabled":""}>后一天 →</button></div>`;
-  if (!blocks.length && !meals.length && !notes.length) {
-    html += `<section class="card"><p class="empty">这一天还没有带时间的记录。打卡或补记后会长出时间块。</p></section>`;
+  if (!planned.length && !actual.length && !meals.length && !notes.length) {
+    html += `<section class="card"><p class="empty">这一天还没有记录。左栏排计划时段、右栏打卡,就会长出对照的时间块。</p></section>`;
   } else {
+    const half = `((100% - 48px) / 2)`;
+    html += `<div class="tl-cols-head"><span style="width:42px;flex:none"></span><span class="lab">📋 计划</span><span class="lab">✓ 实际</span></div>`;
     html += `<div class="tl-wrap" style="height:${H}px">`;
     for (let m=lo;m<=hi;m+=60) html+=`<div class="tl-hour" style="top:${(m-lo)*PX}px">${pad(m/60)}:00</div>`;
+    html += `<div class="tl-coldiv" style="left:calc(42px + ${half})"></div>`;
     if (ds===today){ const nm=minOfDay(Date.now(),ds); if(nm>=lo&&nm<=hi) html+=`<div class="tl-now" style="top:${(nm-lo)*PX}px"></div>`; }
-    const leftPad=42,rightPad=6;
-    for (const b of blocks){
-      const laneW=`calc((100% - ${leftPad+rightPad}px) / ${nLanes})`;
+    for (const b of planned){
       const top=(b.s-lo)*PX, height=Math.max(16,(b.e-b.s)*PX);
-      const tg = (b.tags&&b.tags.length)?" #"+b.tags.join(" #"):"";
-      html += `<div class="tl-block ${b.cls}${b.live?" live":""}" onclick="openEditModal('${b.kind}','${ds}','${b.id}')" title="${esc(b.note||'')}" style="top:${top}px;height:${height}px;left:calc(${leftPad}px + ${laneW} * ${b.lane});width:calc(${laneW} - 4px)">
+      html += `<div class="tl-block ghost ${b.cls==="life"?"life":""}" onclick="openEditModal('plan','${ds}','${b.id}')" title="${esc(b.note||'')}" style="top:${top}px;height:${height}px;left:calc(42px + ${half} * ${b.lane} / ${nL});width:calc(${half} / ${nL} - 4px)">
+        ${b.done?"✓ ":""}${esc(b.text)}${height>30?`<span class="bt">${pad(Math.floor(b.s/60))}:${pad(b.s%60)}–${pad(Math.floor(b.e/60))}:${pad(b.e%60)} ${fmtMin(b.e-b.s)}</span>`:""}</div>`;
+    }
+    for (const b of actual){
+      const top=(b.s-lo)*PX, height=Math.max(16,(b.e-b.s)*PX);
+      const tg=(b.tags&&b.tags.length)?" #"+b.tags.join(" #"):"";
+      html += `<div class="tl-block ${b.cls}${b.live?" live":""}" onclick="openEditModal('${b.kind}','${ds}','${b.id}')" title="${esc(b.note||'')}" style="top:${top}px;height:${height}px;left:calc(42px + ${half} + ${half} * ${b.lane} / ${nR});width:calc(${half} / ${nR} - 4px)">
         ${esc(b.text)}${height>30?`<span class="bt">${pad(Math.floor(b.s/60))}:${pad(b.s%60)}–${b.live?"…":pad(Math.floor(b.e/60))+":"+pad(b.e%60)} ${fmtMin(b.e-b.s)}${esc(tg)}</span>`:""}</div>`;
     }
-    for (const m of meals){ if(m.min<lo||m.min>hi)continue; html+=`<div class="tl-meal" style="top:${(m.min-lo)*PX-8}px;right:6px">🍚 ${esc(m.label.slice(0,12))}</div>`; }
-    for (const n of notes){ if(n.min<lo||n.min>hi)continue; html+=`<div class="tl-note" style="top:${(n.min-lo)*PX-8}px">${esc(n.label)}</div>`; }
+    for (const m of meals){ if(m.min<lo||m.min>hi)continue; html+=`<div class="tl-meal" style="top:${(m.min-lo)*PX-8}px;right:6px">🍚 ${esc(m.label.slice(0,10))}</div>`; }
+    for (const n of notes){ if(n.min<lo||n.min>hi)continue; html+=`<div class="tl-note" style="top:${(n.min-lo)*PX-8}px;left:calc(42px + ${half} + 3px)">${esc(n.label)}</div>`; }
     html += `</div>`;
-    html += `<div class="tl-legend"><span><i style="background:var(--green)"></i>项目</span><span><i style="background:var(--amber)"></i>计划</span><span><i style="background:var(--life)"></i>生活</span><span><i style="background:#FBE9C5;border:1px solid var(--amber);border-radius:999px"></i>感想</span><span><i style="background:#fff;border:1px solid var(--red);border-radius:999px"></i>饮食</span></div>`;
-    html += `<p class="hint" style="margin-top:8px">点任意色块可编辑时间、内容、标签。</p>`;
-    const workMin=blocks.filter(b=>b.cls!=="life").reduce((s,b)=>s+(b.e-b.s),0);
-    const lifeMin=blocks.filter(b=>b.cls==="life").reduce((s,b)=>s+(b.e-b.s),0);
-    html += `<section class="card" style="margin-top:12px"><span class="hint">有记录的时间:项目 ${fmtMin(workMin)} · 生活 ${fmtMin(lifeMin)}。没记录的时间不等于浪费,它只是没被看见。</span></section>`;
+    html += `<div class="tl-legend"><span><i style="background:transparent;border:1.5px dashed var(--green)"></i>计划时段</span><span><i style="background:var(--green)"></i>实际·项目</span><span><i style="background:var(--amber)"></i>计划执行</span><span><i style="background:var(--life)"></i>生活</span></div>`;
+    html += `<p class="hint" style="margin-top:8px">左栏=你排的计划(虚线),右栏=实际发生(实心)。点色块可编辑。</p>`;
+    const toIv = arr => arr.map(b=>[b.s*60000, b.e*60000]);
+    const pWork=mergedMinutes(toIv(planned));
+    const aWork=mergedMinutes(toIv(actual.filter(b=>b.cls!=="life")));
+    const aLife=mergedMinutes(toIv(actual.filter(b=>b.cls==="life")));
+    html += `<section class="card" style="margin-top:12px"><span class="hint">计划时段共 ${fmtMin(pWork)} · 实际项目 ${fmtMin(aWork)} · 生活 ${fmtMin(aLife)}。${pWork?(aWork>=pWork?"做到了甚至超过计划。":"实际比计划少 "+fmtMin(pWork-aWork)+",看看卡在哪。"):"还没排计划时段,可在今日页给计划排个时间。"}</span></section>`;
   }
   document.getElementById("view-timeline").innerHTML = html;
 }
-function tlMove(dir){ const dates=lastN(DAYS_KEPT); const idx=dates.indexOf(tlDate); const ni=idx+dir; if(ni>=0&&ni<dates.length){tlDate=dates[ni]; renderTimeline();} }
+function tlMove(dir){ const dates=tlRange(); const idx=dates.indexOf(tlDate); const ni=idx+dir; if(ni>=0&&ni<dates.length){tlDate=dates[ni]; renderTimeline();} }
+
+/* ================= 日历(重要事件 + 工作进度) ================= */
+function computeDayInfo(d){
+  const wIv=[], lIv=[];
+  for (const a of (d.acts||[])){ if(!a.endAt||a.endAt<=a.startAt) continue; if(a.lineId) wIv.push([a.startAt,a.endAt]); else lIv.push([a.startAt,a.endAt]); }
+  for (const p of (d.plans||[])) if(p.status==="done"&&p.startAt&&p.endAt&&p.endAt>p.startAt&&p.lineId) wIv.push([p.startAt,p.endAt]);
+  const plans=d.plans||[];
+  return { work:mergedMinutes(wIv), life:mergedMinutes(lIv), doneP:plans.filter(p=>p.status==="done").length, totalP:plans.length };
+}
+async function loadCalMonth(ym){
+  const [y,m]=ym.split("-").map(Number);
+  const dim=new Date(y,m,0).getDate();
+  for (let dn=1; dn<=dim; dn++){
+    const ds=`${y}-${pad(m)}-${pad(dn)}`;
+    if (calDays[ds]) continue;
+    const d = days[ds] || await store.get("day:"+ds);
+    calDays[ds] = d ? computeDayInfo(d) : {};
+  }
+  renderCalendar();
+}
+function renderCalendar(){
+  const [y,m]=calMonth.split("-").map(Number);
+  const startWd=new Date(y,m-1,1).getDay();
+  const dim=new Date(y,m,0).getDate();
+  let cells="";
+  for (let i=0;i<startWd;i++) cells+=`<div class="cal-cell blank"></div>`;
+  for (let dn=1;dn<=dim;dn++){
+    const ds=`${y}-${pad(m)}-${pad(dn)}`;
+    const info=days[ds]?computeDayInfo(days[ds]):(calDays[ds]||{});
+    const evs=events.filter(e=>e.date===ds);
+    let dots="";
+    if (info.work) dots+=`<span class="cal-dot"></span>`;
+    if (info.life) dots+=`<span class="cal-dot life"></span>`;
+    if (info.doneP) dots+=`<span class="cal-dot plan"></span>`;
+    let marks = dots?`<div class="cal-dots">${dots}</div>`:"";
+    for (const e of evs.slice(0,2)) marks+=`<div class="cal-ev">${esc(e.title)}</div>`;
+    if (evs.length>2) marks+=`<div class="cal-ev">+${evs.length-2}…</div>`;
+    cells+=`<div class="cal-cell${ds===today?" today":""}${ds===calSel?" sel":""}" onclick="selectCalDay('${ds}')">
+      <div class="cal-day${ds>today?" off":""}">${dn}</div><div class="cal-marks">${marks}</div></div>`;
+  }
+  let html=`<div class="cal-nav"><button onclick="calMove(-1)">← 上月</button>
+    <span class="cal-title">${y}年${m}月</span>
+    <button onclick="calMove(1)">下月 →</button></div>
+    <div class="cal-grid">${"日一二三四五六".split("").map(w=>`<div class="cal-wd">${w}</div>`).join("")}${cells}</div>`;
+  html += renderCalPanel();
+  document.getElementById("view-calendar").innerHTML = html;
+}
+function renderCalPanel(){
+  const ds=calSel, info=days[ds]?computeDayInfo(days[ds]):(calDays[ds]||{});
+  const evs=events.filter(e=>e.date===ds).sort((a,b)=>(a.ts||0)-(b.ts||0));
+  let s=`<section class="card cal-panel"><div class="sect"><h2>${sd(ds)} 周${wd(ds)}${ds===today?" · 今天":""}</h2>
+    <span class="hint">${info.totalP?`计划 ${info.doneP||0}/${info.totalP}`:""}${info.work?`${info.totalP?" · ":""}工作 ${fmtMin(info.work)}`:""}</span></div>`;
+  s+=`<div class="inputrow" style="margin-top:0"><input type="text" id="calEvInput" placeholder="这天的重要事件 / 纪念日 / 截止…"><button class="btn" onclick="addEvent()">记下</button></div>`;
+  if (evs.length) s+=evs.map(e=>`<div class="cal-evrow"><span class="cal-evdot"></span>
+    <span class="evt">${esc(e.title)}${e.note?`<div class="hint">${esc(e.note)}</div>`:""}</span>
+    <button class="edit" onclick="editEvent('${e.id}')">改</button><button class="del" onclick="delEvent('${e.id}')">×</button></div>`).join("");
+  else s+=`<p class="empty">这天还没记重要事件。</p>`;
+  if (tlRange().includes(ds)) s+=`<div class="inputrow"><button class="btn ghost full" onclick="jumpToDay('${ds}')">看这天的时间轴 →</button></div>`;
+  s+=`</section>`;
+  return s;
+}
+function calMove(delta){ let [y,m]=calMonth.split("-").map(Number); m+=delta; if(m<1){m=12;y--;} if(m>12){m=1;y++;} calMonth=`${y}-${pad(m)}`; loadCalMonth(calMonth); }
+function selectCalDay(ds){ calSel=ds; renderCalendar(); const inp=document.getElementById("calEvInput"); if(inp) inp.focus(); }
+async function addEvent(){ const inp=document.getElementById("calEvInput"); const t=inp?inp.value.trim():""; if(!t)return; events.push({id:uid(),date:calSel,title:t,note:"",ts:Date.now()}); inp.value=""; await saveEvents(); renderCalendar(); }
+async function delEvent(id){ if(!confirm("删除这个事件?"))return; events=events.filter(e=>e.id!==id); await saveEvents(); renderCalendar(); }
+async function editEvent(id){ const e=events.find(x=>x.id===id); if(!e)return; const t=prompt("事件:",e.title); if(t===null||!t.trim())return; e.title=t.trim(); const n=prompt("备注(可空):",e.note||""); if(n!==null)e.note=n.trim(); await saveEvents(); renderCalendar(); }
+function jumpToDay(ds){ tlDate=ds; switchTabTo("timeline"); }
 
 /* ================= 统计(含标签聚合) ================= */
+// 把若干 [start,end] 区间合并后算总分钟数,重叠部分只算一次
+function mergedMinutes(intervals){
+  if (!intervals.length) return 0;
+  const arr = intervals.filter(iv=>iv[1]>iv[0]).sort((a,b)=>a[0]-b[0]);
+  if (!arr.length) return 0;
+  let total=0, cs=arr[0][0], ce=arr[0][1];
+  for (let i=1;i<arr.length;i++){
+    const s=arr[i][0], e=arr[i][1];
+    if (s<=ce){ if(e>ce) ce=e; }   // 重叠或相接,延长当前区间
+    else { total+=ce-cs; cs=s; ce=e; }
+  }
+  total+=ce-cs;
+  return total/60000;
+}
 function dayWorkStats(ds){
   const d = days[ds];
-  const perLine={}, perTag={};
-  let lifeMin=0, workMin=0;
+  // 按"线 / 标签"分别收集时间区间,最后各自做区间合并 —— 同一时段重叠只算一次,数字不再虚高
+  const lineIv={}, tagIv={}, workIv=[], lifeIv=[];
   if (d){
     for (const a of (d.acts||[])){
-      if (!a.endAt) continue;
-      const m=(a.endAt-a.startAt)/60000;
-      if (a.lineId){ perLine[a.lineId]=(perLine[a.lineId]||0)+m; workMin+=m; } else lifeMin+=m;
-      for (const t of (a.tags||[])) perTag[t]=(perTag[t]||0)+m;
+      if (!a.endAt || a.endAt<=a.startAt) continue;
+      const iv=[a.startAt,a.endAt];
+      if (a.lineId){ (lineIv[a.lineId]=lineIv[a.lineId]||[]).push(iv); workIv.push(iv); }
+      else lifeIv.push(iv);
+      for (const t of (a.tags||[])) (tagIv[t]=tagIv[t]||[]).push(iv);
     }
-    for (const p of (d.plans||[])) if (p.status==="done"&&p.actualMin){ perLine[p.lineId]=(perLine[p.lineId]||0)+p.actualMin; workMin+=p.actualMin; }
+    for (const p of (d.plans||[])) if (p.status==="done" && p.startAt && p.endAt && p.endAt>p.startAt && p.lineId){
+      const iv=[p.startAt,p.endAt];
+      (lineIv[p.lineId]=lineIv[p.lineId]||[]).push(iv); workIv.push(iv);
+    }
   }
-  return {perLine, perTag, lifeMin, workMin};
+  const perLine={}, perTag={};
+  for (const k in lineIv) perLine[k]=mergedMinutes(lineIv[k]);
+  for (const k in tagIv) perTag[k]=mergedMinutes(tagIv[k]);
+  return { perLine, perTag, lifeMin:mergedMinutes(lifeIv), workMin:mergedMinutes(workIv) };
 }
 function renderStats(){
   const ds7 = lastN(7).reverse();
@@ -1213,6 +1403,18 @@ function renderStats(){
     <div style="margin-top:12px"><button class="btn full" onclick="runAI()">✨ 生成 AI 周点评</button></div>
     <div id="aiBox"></div>
   </section>`;
+
+  // 各项目本周:净时间(重叠只算一次) + 计划完成度
+  const lineWeek={};
+  for (const ds of lastN(7)){ const pl=statsByDay[ds].perLine; for(const k in pl) lineWeek[k]=(lineWeek[k]||0)+pl[k]; }
+  const linePlan={};
+  for (const ds of lastN(7)){ const d=days[ds]; if(!d)continue; for(const p of (d.plans||[])){ const k=p.lineId||"__none__"; (linePlan[k]=linePlan[k]||{done:0,total:0}); linePlan[k].total++; if(p.status==="done")linePlan[k].done++; } }
+  const lineRows=lines.map(l=>({l,min:Math.round(lineWeek[l.id]||0),plan:linePlan[l.id]||{done:0,total:0}})).filter(r=>r.min>0||r.plan.total>0).sort((a,b)=>b.min-a.min);
+  html += `<section class="card"><div class="sect"><h3>本周各项目</h3><span class="hint">净时间·重叠只算一次</span></div>`;
+  if (!lineRows.length) html += `<p class="empty">本周还没有项目记录。</p>`;
+  else { const maxL=Math.max(...lineRows.map(r=>r.min),1);
+    html += lineRows.map(r=>`<div class="barrow"><span class="barlabel">${esc(r.l.name)}</span><div class="bartrack"><div class="barfill" style="width:${Math.min(100,r.min/maxL*100)}%"></div></div><span class="barval">${r.min?fmtMin(r.min):"·"}</span></div>${r.plan.total?`<div class="hint" style="margin:-2px 0 8px 72px">计划 ${r.plan.done}/${r.plan.total} 完成</div>`:""}`).join(""); }
+  html += `</section>`;
 
   // 标签时间分布
   const tagEntries = Object.entries(tagAgg).sort((a,b)=>b[1]-a[1]);
@@ -1321,23 +1523,32 @@ function renderManage(){
     const idle=last?Math.round((new Date(today)-new Date(last))/864e5):null; return {c,idle};
   };
   let html="";
-  for (const layer of LAYERS){
+  for (const layer of layers){
     const ls=lines.filter(l=>l.layer===layer.id);
-    html += `<section class="card"><div class="sect"><h2><span class="laymark">${layer.mark}</span>${layer.name}</h2><span class="hint">${layer.desc}</span></div>`;
-    html += ls.length===0?`<p class="empty">这一层还没有项目线。</p>`:`<ul class="linelist">`+ls.map(l=>{const s=statsFor(l.id);const stat=s.c>0?`<span class="dots">${"●".repeat(Math.min(s.c,7))}</span><span>近期 ${s.c} 笔</span>${s.idle>0?`<span>· 停了 ${s.idle} 天</span>`:""}`:`<span class="idle">近期无记录</span>`;
+    html += `<section class="card"><div class="sect"><h2><span class="laymark">${esc(layer.mark||"·")}</span>${esc(layer.name)}</h2>
+      <span><button class="edit" onclick="renameLayer('${layer.id}')">改名</button><button class="del" onclick="delLayer('${layer.id}')">×</button></span></div>`;
+    if (layer.desc) html += `<p class="hint" style="margin:-4px 0 8px">${esc(layer.desc)}</p>`;
+    html += ls.length===0?`<p class="empty">这一类还没有项目线。</p>`:`<ul class="linelist">`+ls.map(l=>{const s=statsFor(l.id);const stat=s.c>0?`<span class="dots">${"●".repeat(Math.min(s.c,7))}</span><span>近期 ${s.c} 笔</span>${s.idle>0?`<span>· 停了 ${s.idle} 天</span>`:""}`:`<span class="idle">近期无记录</span>`;
       return `<li><div class="linename">${esc(l.name)}</div><button class="edit" onclick="renameLine('${l.id}')">改名</button><button class="del" onclick="delLine('${l.id}')">×</button><div class="linestat">${stat}</div></li>`;}).join("")+`</ul>`;
     html += `</section>`;
   }
-  html += `<section class="card"><div class="inputrow" style="margin-top:0"><input type="text" id="newLineName" placeholder="新项目线名称…"></div>
-    <div class="chips" style="margin-top:10px">${LAYERS.map(ly=>`<button class="chip${ly.id===newLayer?" on":""}" onclick="newLayer='${ly.id}';renderManage()">${ly.name}</button>`).join("")}</div>
+  html += `<section class="card"><div class="sect"><h3>＋ 新项目线</h3></div>
+    <div class="inputrow" style="margin-top:0"><input type="text" id="newLineName" placeholder="新项目线名称…"></div>
+    <div class="chips" style="margin-top:10px">${layers.map(ly=>`<button class="chip${ly.id===newLayer?" on":""}" onclick="newLayer='${ly.id}';renderManage()">${esc(ly.name)}</button>`).join("")}</div>
     <div class="inputrow"><button class="btn full" onclick="addLine()">＋ 添加项目线</button></div></section>`;
+  html += `<section class="card"><div class="sect"><h3>大类管理</h3><span class="hint">分类的最上层</span></div>
+    <p class="hint" style="margin:0 0 10px">大类是项目线的分组(如"日更线/周推进/月资产")。可改名、增删。删除某大类时,它下面的项目线会移到第一个大类,记录不丢。</p>
+    <div class="inputrow" style="margin-top:0"><input type="text" id="newLayerName" placeholder="新大类名称…"><button class="btn" onclick="addLayer()">添加大类</button></div></section>`;
   document.getElementById("linesPanel").innerHTML = html;
   // 标签管理
   document.getElementById("tagManageList").innerHTML = allTags.length
     ? allTags.map(t=>`<span class="chip tag on" style="cursor:default">${esc(t)} <span onclick="delTag('${esc(t)}')" style="cursor:pointer;margin-left:4px">×</span></span>`).join("")
     : `<span class="hint">还没有标签</span>`;
 }
-async function addLine(){ const inp=document.getElementById("newLineName"); const n=inp.value.trim(); if(!n)return; lines.push({id:uid(),name:n,layer:newLayer}); await saveLines(); renderAll(); }
+async function addLine(){ const inp=document.getElementById("newLineName"); const n=inp.value.trim(); if(!n)return; lines.push({id:uid(),name:n,layer:newLayer||layers[0]?.id}); await saveLines(); renderAll(); }
+async function addLayer(){ const inp=document.getElementById("newLayerName"); const n=inp.value.trim(); if(!n)return; layers.push({id:uid(),name:n,desc:"",mark:[...n][0]||"·"}); inp.value=""; await saveLayers(); renderAll(); }
+async function renameLayer(id){ const l=layerById(id); if(!l)return; const n=prompt("大类新名称:",l.name); if(n===null||!n.trim())return; l.name=n.trim(); l.mark=[...l.name][0]||"·"; const dsc=prompt("一句话说明(可空):",l.desc||""); if(dsc!==null)l.desc=dsc.trim(); await saveLayers(); renderAll(); }
+async function delLayer(id){ if(layers.length<=1){alert("至少保留一个大类。");return;} const inUse=lines.filter(l=>l.layer===id); const other=layers.find(l=>l.id!==id); if(!confirm(inUse.length?`删除这个大类?里面 ${inUse.length} 条项目线会移到「${other.name}」。`:"删除这个大类?"))return; for(const l of inUse) l.layer=other.id; layers=layers.filter(l=>l.id!==id); if(newLayer===id)newLayer=layers[0].id; await saveLayers(); await saveLines(); renderAll(); }
 async function renameLine(id){ const l=lines.find(x=>x.id===id); if(!l)return; const n=prompt("项目线新名称:",l.name); if(n===null||!n.trim())return; l.name=n.trim(); await saveLines(); renderAll(); }
 async function delLine(id){ if(!confirm("删除这条项目线?已有记录保留为'已删除的线'"))return; lines=lines.filter(l=>l.id!==id); if(selPlanLine===id)selPlanLine=lines[0]?.id||null; if(selActLine===id)selActLine=LIFE; if(selTaskLine===id)selTaskLine=null; await saveLines(); renderAll(); }
 async function addTagManual(){ const inp=document.getElementById("newTagInput"); const t=inp.value.trim(); if(!t)return; if(!allTags.includes(t))allTags.push(t); inp.value=""; await saveTags(); renderManage(); renderActUI(); }
@@ -1349,11 +1560,11 @@ async function exportData(){
   const msg=document.getElementById("backupMsg"); msg.textContent="正在打包…";
   const withImg=document.getElementById("expWithImg").checked;
   const data={};
-  data["worklines"]=lines; data["members"]=members; data["tasks"]=tasks; data["alltags"]=allTags;
+  data["worklines"]=lines; data["members"]=members; data["tasks"]=tasks; data["alltags"]=allTags; data["layers"]=layers; data["events"]=events;
   const dayKeys=await store.list("day:"); const keys=dayKeys.length?dayKeys:lastN(60).map(ds=>"day:"+ds);
   for (const k of keys){ const v=await store.get(k); if(v)data[k]=v; }
   if (withImg){ const imgKeys=await store.list("img:"); for(const k of imgKeys){const v=await store.get(k); if(v)data[k]=v;} }
-  const payload=JSON.stringify({app:"studio-log",version:6,exportedAt:new Date().toISOString(),data});
+  const payload=JSON.stringify({app:"studio-log",version:7,exportedAt:new Date().toISOString(),data});
   const fname=`studio-log-backup-${today}.json`;
   try{ const blob=new Blob([payload],{type:"application/json"}); const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=fname; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
     msg.textContent=`已导出 ${fname}(${(payload.length/1024).toFixed(0)} KB)。没自动下载的话,下方文本框可全选复制保存。`;
@@ -1371,7 +1582,11 @@ async function importData(input){
     if (obj.data.members) members=obj.data.members;
     if (obj.data.tasks) tasks=obj.data.tasks;
     if (obj.data.alltags) allTags=obj.data.alltags;
+    if (obj.data.layers && obj.data.layers.length) layers=obj.data.layers;
+    if (obj.data.events) events=obj.data.events;
     for (const ds of lastN(DAYS_KEPT)){ const d=await store.get("day:"+ds); if(d)days[ds]=d; }
+    const dtmr=await store.get("day:"+tomorrowDS()); if(dtmr)days[tomorrowDS()]=dtmr;
+    calDays={}; loadCalMonth(calMonth);
     msg.textContent="恢复完成。"; renderAll();
   }catch(e){ msg.textContent="恢复失败:"+e.message; }
 }
@@ -1384,10 +1599,12 @@ function switchTab(v, btn){
   document.querySelectorAll(".tab").forEach(el=>el.classList.remove("active"));
   btn.classList.add("active");
   if (v==="timeline") renderTimeline();
+  if (v==="calendar") loadCalMonth(calMonth);
   if (v==="stats") renderStats();
   if (v==="team") renderTeam();
   window.scrollTo(0,0);
 }
+function switchTabTo(v){ const map={today:0,timeline:1,calendar:2,team:3,stats:4,manage:5}; const btn=document.querySelectorAll(".tab")[map[v]]; if(btn) switchTab(v,btn); }
 document.getElementById("actInput").addEventListener("keydown", e=>{ if(e.key==="Enter") startAct(); });
 document.getElementById("mealInput").addEventListener("keydown", e=>{ if(e.key==="Enter") submitMeal(); });
 document.getElementById("planInput").addEventListener("keydown", e=>{ if(e.key==="Enter") addPlan(); });
