@@ -244,6 +244,12 @@
   .cal-evrow .cal-evdot { width:8px; height:8px; border-radius:50%; background:var(--amber); flex-shrink:0; margin-top:5px; }
   .cal-evrow .evt { flex:1; font-size:14px; }
   @media (min-width:920px){ .cal-cell{ aspect-ratio:1/0.62; } }
+
+  /* 就地管理类型 + 任务 */
+  .chip.tool { border-style:dashed; color:var(--green); padding:6px 10px; }
+  .tagpill.task { background:#E7EFE6; color:var(--green); }
+  .tagpill.task.done { background:var(--green); color:#fff; }
+  .tagpill.task.undone { background:#F0DAD3; color:var(--red); }
 </style>
 </head>
 <body>
@@ -267,6 +273,8 @@
           <input type="text" id="actInput" placeholder="我去洗碗了 / 开始剪片子…">
           <button class="btn go" onclick="startAct()">▶ 开始</button>
         </div>
+        <div class="inputrow" style="margin-top:8px"><input type="text" id="actTask" placeholder="关联任务(可选)·结束时问你完成没"></div>
+        <div id="actTaskPicker"></div>
         <div id="runningList"></div>
         <button class="foldlink" onclick="toggleRetro()">＋ 补记已发生的事</button>
         <div id="retroForm" style="display:none">
@@ -500,6 +508,7 @@ let selPlanLine = null, selActLine = LIFE, selExpCat = "餐饮", noteKind = "感
 let selTaskMember = null, selTaskLine = null;
 let selPlanDate = today;        // 计划放到哪天(今天/明天)
 let actTags = [];               // 当前"现在在做"已选标签
+let actTaskNames = [];          // 记过的任务名(快捷复用)
 let selMeal = (()=>{ const h=new Date().getHours(); return h<10?"早餐":h<14?"午餐":h<21?"晚餐":"加餐"; })();
 let openStrip = null, newLayer = "daily", tlDate = today, teamShowDone = false;
 let calMonth = today.slice(0,7), calSel = today, calDays = {};
@@ -595,6 +604,7 @@ function toggleImg(el){ el.classList.toggle("big"); }
   tasks = (await store.get("tasks")) || [];
   allTags = (await store.get("alltags")) || ["交通","会议","沟通","杂事"];
   events = (await store.get("events")) || [];
+  actTaskNames = (await store.get("acttasks")) || [];
   apiKey = (await store.get("apikey")) || "";
   for (const ds of lastN(DAYS_KEPT)) {
     const d = await store.get("day:"+ds);
@@ -646,6 +656,8 @@ function openEditModal(kind, ds, id){
       <label>标签(空格或逗号分隔)</label><input type="text" id="m_tags" value="${esc((item.tags||[]).join(' '))}" placeholder="交通 会议">
       <label>开始时间</label><input type="time" class="tinput" id="m_start" value="${item.startAt?hm(item.startAt):''}">
       <label>结束时间(留空表示仍进行中)</label><input type="time" class="tinput" id="m_end" value="${item.endAt?hm(item.endAt):''}">
+      <label>关联任务(可选)</label><input type="text" id="m_task" value="${esc(item.task||'')}">
+      <label>任务状态</label><select id="m_taskdone"><option value="">未记</option><option value="1" ${item.taskDone===true?'selected':''}>完成</option><option value="0" ${item.taskDone===false?'selected':''}>未完成</option></select>
       <label>备注</label><textarea id="m_note" rows="2">${esc(item.note||'')}</textarea>`;
   } else if (kind === "plan") {
     item = d.plans.find(x=>x.id===id);
@@ -704,10 +716,23 @@ function openEditModal(kind, ds, id){
       </div>
     </div>`;
 }
+function lineOptions(val, allowNone){
+  return (allowNone?`<option value="">不归线</option>`:`<option value="${LIFE}" ${(!val||val===LIFE)?'selected':''}>生活</option>`)
+    + lines.map(l=>`<option value="${l.id}" ${val===l.id?'selected':''}>${esc(l.name)}</option>`).join('')
+    + `<option value="__new__">＋ 新建类型…</option>`;
+}
 function lineSelectHTML(id, val, allowNone){
-  const opts = (allowNone?`<option value="">不归线</option>`:`<option value="${LIFE}" ${(!val||val===LIFE)?'selected':''}>生活</option>`)
-    + lines.map(l=>`<option value="${l.id}" ${val===l.id?'selected':''}>${esc(l.name)}</option>`).join('');
-  return `<select id="${id}">${opts}</select>`;
+  return `<select id="${id}" data-none="${allowNone?1:0}" onfocus="this.dataset.prev=this.value" onchange="onLineSelectChange(this)">${lineOptions(val, allowNone)}</select>`;
+}
+async function onLineSelectChange(sel){
+  if (sel.value!=="__new__") return;
+  const allowNone = sel.dataset.none==="1";
+  const prev = sel.dataset.prev || (allowNone?"":LIFE);
+  const n = prompt("新类型名称:");
+  if (n===null || !n.trim()){ sel.innerHTML = lineOptions(prev, allowNone); return; }   // 取消则还原
+  const l = {id:uid(), name:n.trim(), layer:(layers[0]&&layers[0].id)||"daily"};
+  lines.push(l); await saveLines();
+  sel.innerHTML = lineOptions(l.id, allowNone);   // 建好并自动选中
 }
 function toLocalInput(ts){ const d=new Date(ts - d_tzoff(ts)); return d.toISOString().slice(0,16); }
 function d_tzoff(ts){ return new Date(ts).getTimezoneOffset()*60000; }
@@ -725,6 +750,9 @@ async function saveModal(){
     const s = val("m_start"), e = val("m_end");
     if (s) a.startAt = tsFrom(ds, s);
     a.endAt = e ? tsFrom(ds, e) : null;
+    a.task = val("m_task").trim() || null;
+    if (a.task) rememberActTask(a.task);
+    { const td = val("m_taskdone"); a.taskDone = td===""?null:(td==="1"); }
     a.note = val("m_note").trim();
     if (a.endAt && a.endAt <= a.startAt) { alert("结束时间需晚于开始"); return; }
   } else if (kind === "plan") {
@@ -766,16 +794,51 @@ async function saveModal(){
 }
 
 /* ================= 现在在做 + 标签 ================= */
+function lineEditTools(which, sel){
+  const isLine = sel && sel!==LIFE && lines.some(l=>l.id===sel);
+  let s = `<button class="chip tool" onclick="addLineInline('${which}')">＋类型</button>`;
+  if (isLine) s += `<button class="chip tool" onclick="renameSelLine('${which}')">✎改名</button><button class="chip tool" onclick="delSelLine('${which}')">✕删</button>`;
+  return s;
+}
 function renderActUI(){
   const chips = [{id:LIFE, name:"生活"}, ...lines];
   document.getElementById("actLineChips").innerHTML = chips.map(l =>
-    `<button class="chip${l.id===LIFE?" life":""}${selActLine===l.id?" on":""}" onclick="selActLine='${l.id}';renderActUI()">${esc(l.name)}</button>`).join("");
+    `<button class="chip${l.id===LIFE?" life":""}${selActLine===l.id?" on":""}" onclick="selActLine='${l.id}';renderActUI()">${esc(l.name)}</button>`).join("") + lineEditTools('act', selActLine);
   // 标签选择器:已有标签可点选 + 显示当前已选
   const tagBtns = allTags.map(t =>
     `<button class="chip tag${actTags.includes(t)?" on":""}" onclick="toggleActTag('${esc(t)}')">${esc(t)}</button>`).join("");
   document.getElementById("actTagPicker").innerHTML = `
     <div class="hint" style="margin:10px 0 6px">标签(可多选,也可在下方输入新标签)</div>
     <div class="chips">${tagBtns || '<span class="hint">还没有标签,在输入框里加</span>'}</div>`;
+  // 常用任务快捷
+  const tp = document.getElementById("actTaskPicker");
+  if (tp) tp.innerHTML = actTaskNames.length
+    ? `<div class="chips" style="margin-top:6px"><span class="hint" style="width:100%;margin-bottom:2px">常用任务(点一下填入):</span>${actTaskNames.map((n,i)=>`<button class="chip tag" onclick="fillActTask(${i})">${esc(n)}</button>`).join("")}</div>`
+    : "";
+}
+function fillActTask(i){ const el=document.getElementById("actTask"); if(el) el.value=actTaskNames[i]||""; }
+function selOf(which){ return which==="act"?selActLine:selPlanLine; }
+async function addLineInline(which){
+  const n=prompt("新类型名称:"); if(n===null||!n.trim())return;
+  const l={id:uid(),name:n.trim(),layer:(layers[0]&&layers[0].id)||"daily"};
+  lines.push(l); await saveLines();
+  if(which==="act") selActLine=l.id; else selPlanLine=l.id;
+  renderAll();
+}
+async function renameSelLine(which){
+  const id=selOf(which); const l=lines.find(x=>x.id===id);
+  if(!l){alert("先选中一个类型(「生活」不能改名)。");return;}
+  const n=prompt("改名为:",l.name); if(n===null||!n.trim())return;
+  l.name=n.trim(); await saveLines(); renderAll();
+}
+async function delSelLine(which){
+  const id=selOf(which); const l=lines.find(x=>x.id===id);
+  if(!l){alert("先选中一个要删的类型。");return;}
+  if(!confirm(`删除类型「${l.name}」? 已有记录会显示为"已删除的线",不会消失。`))return;
+  lines=lines.filter(x=>x.id!==id);
+  if(selPlanLine===id)selPlanLine=lines[0]?.id||null;
+  if(selActLine===id)selActLine=LIFE;
+  await saveLines(); renderAll();
 }
 function toggleActTag(t){
   const i = actTags.indexOf(t);
@@ -803,6 +866,7 @@ function renderRunning(){
         <div class="rname">${esc(a.text)}</div>
         <div class="rmeta">${actMeta(a)}</div>
         ${tagsHTML(a.tags)}
+        ${taskHTML(a)}
         ${a.note?`<div class="rnote">📝 ${esc(a.note)}</div>`:""}
       </div>
       <div style="display:flex;flex-direction:column;gap:5px">
@@ -814,6 +878,7 @@ function renderRunning(){
     html += finished.map(a => `
       <div class="doneact">✓ <b>${esc(a.text)}</b> <span class="mono2">${actMeta(a)}</span>
         ${tagsHTML(a.tags)}
+        ${taskHTML(a)}
         ${a.note?`<div class="rnote">📝 ${esc(a.note)}</div>`:""}
         <div class="acts"><button class="pbtn mini" onclick="openEditModal('act','${today}','${a.id}')">编辑</button>
         <button class="pbtn mini warn" onclick="delAct('${a.id}')">删除</button></div>
@@ -823,14 +888,18 @@ function renderRunning(){
   document.getElementById("runningList").innerHTML = html;
   renderEdge();
 }
+async function rememberActTask(n){ if(!n)return; actTaskNames=actTaskNames.filter(x=>x!==n); actTaskNames.unshift(n); if(actTaskNames.length>12)actTaskNames=actTaskNames.slice(0,12); await store.set("acttasks",actTaskNames); }
 async function startAct(){
   const inp = document.getElementById("actInput");
   const t = inp.value.trim();
   if (!t) return;
   const tags = actTags.slice();
   rememberTags(tags);
-  dayOf(today).acts.push({id:uid(), text:t, lineId:selActLine===LIFE?null:selActLine, tags, startAt:Date.now(), endAt:null, note:""});
-  inp.value = ""; actTags = [];
+  const taskEl = document.getElementById("actTask");
+  const task = taskEl ? taskEl.value.trim() : "";
+  if (task) await rememberActTask(task);
+  dayOf(today).acts.push({id:uid(), text:t, lineId:selActLine===LIFE?null:selActLine, tags, startAt:Date.now(), endAt:null, note:"", task:task||null, taskDone:null});
+  inp.value = ""; actTags = []; if(taskEl) taskEl.value="";
   await saveDay(today);
   renderActUI(); renderRunning(); renderTimeline(); renderStats();
 }
@@ -839,6 +908,33 @@ async function endAct(id){
   a.endAt = Date.now();
   await saveDay(today);
   renderRunning(); renderTimeline(); renderStats();
+  if (a.task && a.taskDone==null) openTaskDone(id);   // 结束时问任务完成没
+}
+function openTaskDone(id){
+  const a = dayOf(today).acts.find(x=>x.id===id); if(!a) return;
+  document.getElementById("modalRoot").innerHTML = `
+    <div class="modal-bg" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <h3>「${esc(a.task)}」完成了吗?</h3>
+        <p class="hint" style="margin:0 0 14px">刚结束:${esc(a.text)}</p>
+        <div class="modal-acts">
+          <button class="btn go full" onclick="setTaskDone('${id}',true)">✓ 已完成</button>
+          <button class="btn full" style="background:var(--red)" onclick="setTaskDone('${id}',false)">未完成</button>
+        </div>
+        <div class="inputrow"><button class="btn ghost full" onclick="closeModal()">先不记</button></div>
+      </div>
+    </div>`;
+}
+async function setTaskDone(id, done){
+  const a = dayOf(today).acts.find(x=>x.id===id);
+  if (a){ a.taskDone=done; await saveDay(today); }
+  closeModal(); renderRunning(); renderTimeline(); renderStats();
+}
+function taskHTML(a){
+  if(!a.task) return "";
+  const st = a.taskDone===true?" done":a.taskDone===false?" undone":"";
+  const lab = a.taskDone===true?" ✓完成":a.taskDone===false?" ✗未完成":"";
+  return `<div class="rtags"><span class="tagpill task${st}">📌 ${esc(a.task)}${lab}</span></div>`;
 }
 async function delAct(id){
   if(!confirm("删除这条记录?")) return;
@@ -911,6 +1007,8 @@ function buildAutoSum(ds){
   if (sortedT.length) out += `标签:` + sortedT.map(([t,m])=>`${t} ${fmtMin(m)}`).join(" · ") + `\n`;
   out += `计划 ${doneP}/${d.plans.length} 完成 · 感想 ${d.notes.length} 条 · 餐 ${d.meals.length}`;
   if (spend>0) out += ` · 花销 ¥${spend.toFixed(2)}`;
+  const atk = (d.acts||[]).filter(a=>a.task);
+  if (atk.length) out += `\n任务 ${atk.filter(a=>a.taskDone===true).length}/${atk.length} 完成`;
   if (tAssigned || tDone) out += `\n团队:布置 ${tAssigned} · 完成 ${tDone}`;
   return out;
 }
@@ -960,7 +1058,7 @@ async function delExp(id){
 function renderToday(){
   const d = dayOf(today);
   document.getElementById("planLineChips").innerHTML = lines.map(l =>
-    `<button class="chip${selPlanLine===l.id?" on":""}" onclick="selPlanLine='${l.id}';renderToday()">${esc(l.name)}</button>`).join("");
+    `<button class="chip${selPlanLine===l.id?" on":""}" onclick="selPlanLine='${l.id}';renderToday()">${esc(l.name)}</button>`).join("") + lineEditTools('plan', selPlanLine);
   const tmr = tomorrowDS();
   document.getElementById("planDateChips").innerHTML = [{ds:today,label:"今天"},{ds:tmr,label:"明天"}]
     .map(c=>`<button class="chip${selPlanDate===c.ds?" on":""}" onclick="selPlanDate='${c.ds}';renderToday()">${c.label}</button>`).join("");
